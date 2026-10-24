@@ -535,7 +535,7 @@ const renderQuick = (q, heard) => `<p>${esc(q.say)}</p><ul class="quick-l">${q.l
 const TEAM = {
   today: { name: 'Note Merger', local: true, voices: [/Zira/, /Hazel/], pitch: 1.05, rate: 1 },
   notes: { name: 'Notes Assistant', local: true, voices: [/David/, /George/], pitch: 0.95, rate: 0.98 },
-  latest: { name: 'Paper Reader', voices: [/Ryan.*Natural/, /Google UK English Male/, /George/, /David/], pitch: 0.9, rate: 0.95 },
+  latest: { name: 'Talk Reader', voices: [/Ryan.*Natural/, /Google UK English Male/, /George/, /David/], pitch: 0.9, rate: 0.95 },
   host: { name: 'Host', voices: [/Jenny/, /Aria/, /Zira/], pitch: 1, rate: 1.02 },
 };
 const agentTag = who => `<div class="meta" style="margin:0 0 6px;font-weight:600">🎙 ${esc(TEAM[who]?.name ?? '')}</div>`;

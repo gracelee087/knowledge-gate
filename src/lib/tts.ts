@@ -11,7 +11,7 @@ import { need } from './env.ts';
 export const TEAM_VOICES: Record<string, { name: string; voice: string }> = {
   today: { name: 'Note Merger', voice: 'XrExE9yKIg1WjnnlVkGX' }, // Matilda: knowledgeable, professional
   notes: { name: 'Notes Assistant', voice: 'onwK4e9ZLuTAKqWW03F9' }, // Daniel: steady broadcaster
-  latest: { name: 'Paper Reader', voice: 'Xb7hH8MSUJpSbSDYk0k2' }, // Alice: clear educator
+  latest: { name: 'Talk Reader', voice: 'Xb7hH8MSUJpSbSDYk0k2' }, // Alice: clear educator
   host: { name: 'Host', voice: 'vChnJZ1Cu89g2XXumPfT' }, // Lara: natural, relatable (the demo video's narrator)
 };
 const CACHE = new URL('../../data/cache/tts/', import.meta.url);

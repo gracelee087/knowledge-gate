@@ -1,5 +1,5 @@
 // Quick answers: "what's new today" and the latest talks are answered by code from the files
-// the morning routine wrote (notes/00 Morning.md + the notes' git, data/cards + data/videos.json), in milliseconds, instead of minutes in the local model. Every name, date and price is copied from those files.
+// the morning routine wrote (notes/00 Morning.md + the notes' git, data/cards + data/videos.json), in milliseconds, instead of minutes in the local model. Every name and date is copied from those files.
 // Anything else returns null and goes to the Notes Assistant (src/lib/ask.ts).
 // Used by src/cli/web.ts for typed and spoken questions. Files are only read.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';

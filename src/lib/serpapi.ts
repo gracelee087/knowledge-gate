@@ -23,10 +23,6 @@ async function search(params: Record<string, string>, cacheKey: string, keep = (
   return body;
 }
 
-// Google Flights, at most one search per route, dates and day (the cache key carries today's date).
-export const googleFlights = (p: { departure_id: string; arrival_id: string; outbound_date: string; return_date?: string; adults?: string }) =>
-  search({ engine: 'google_flights', currency: 'EUR', hl: 'en', type: p.return_date ? '1' : '2', adults: '1', ...p } as Record<string, string>,
-    `flights_${p.departure_id}_${p.arrival_id}_${p.outbound_date}_${p.return_date ?? 'oneway'}_${new Date().toISOString().slice(0, 10)}`);
 // Searches left this month (the account endpoint does not spend one).
 export const searchesLeft = async () => (await (await fetch(`https://serpapi.com/account.json?api_key=${need('SERPAPI_API_KEY')}`)).json()).total_searches_left as number;
 

@@ -12,7 +12,7 @@ import { db, closeDb } from '../lib/db.ts';
 const data = (p: string) => new URL(`../../data/${p}`, import.meta.url);
 const STATE = ['concepts.json', 'categories.json', 'videos.json', 'skipped.json'];
 
-// Papers (src/cli/sources.ts) are added to videos.json on the laptop only; a pull keeps the ones Atlas does not have.
+// Old paper entries (from a removed arXiv step) exist in videos.json on the laptop only; a pull keeps them.
 export function keepLocalPapers(atlas: any[], local: any[]) {
   const ids = new Set(atlas.map(v => v.videoId));
   return atlas.concat(local.filter(v => v.kind === 'paper' && !ids.has(v.videoId)));

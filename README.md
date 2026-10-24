@@ -24,6 +24,11 @@ Two rules shaped the design:
 
 ## How it works
 
+![lecture-gate flow: on the server, every new talk goes YouTube → transcript (SerpApi) → card + checks (Gemma 4 31B) → concept map (bge-m3, MongoDB Atlas); every night failed checks become tested rules in Backboard; only public lecture data comes down to the laptop, where Ollama merges new points into my notes, builds the morning page and answers questions](docs/evidence/figures/lecture-gate-flow.png)
+
+<details>
+<summary>The same flow as a diagram with the step names in the code</summary>
+
 ```mermaid
 flowchart LR
   subgraph Server["Server (DigitalOcean Droplet)"]
@@ -45,6 +50,8 @@ flowchart LR
   end
 ```
 
+</details>
+
 Only public talk data goes through Atlas (`src/cli/sync.ts`). The notes folder is gitignored and has its own local
 git, so every morning merge can be undone.
 
@@ -62,6 +69,26 @@ activity, so a run survives a killed worker and continues at the unfinished step
 ![A completed processLecture run in the Temporal Web UI: transcript, card and addToMap steps on a timeline](docs/images/temporal-workflow-run.png)
 
 *One real run in the Temporal UI (Oct 21): transcript → card → addToMap, 1 min 12 s in total.*
+
+**Embeddings.** Each concept mention is stored in Atlas (`lecture_gate.mentions`) as a 1024-number bge-m3 vector, and
+the `vec` Vector Search index compares them by cosine. The Concept Matcher takes the 6 closest mentions from past
+talks, and Gemma 4 31B decides whether the new one is one of them.
+
+<table>
+<tr>
+<td width="50%"><img src="docs/evidence/04-atlas/A_atlas_vec_index_dev.png" alt="The vec Vector Search index on lecture_gate.mentions in MongoDB Atlas: vector path vector, 1024 dimensions, cosine similarity, filter on videoId"></td>
+<td width="50%"><img src="docs/evidence/04-atlas/A8_atlas_vectors_dev.png" alt="Five concept mentions of one talk with the first 6 of their 1024 vector numbers"></td>
+</tr>
+<tr>
+<td><em>The <code>vec</code> index: 1024 dimensions, cosine, filter on <code>videoId</code>.</em></td>
+<td><em>The real vectors of one talk's 5 concepts (first 6 of 1024 numbers shown).</em></td>
+</tr>
+</table>
+
+![The concept map: each dot is a concept, a line joins two concepts named in the same lecture, and the largest dot, Agent Harness, links to many lectures](docs/evidence/figures/map_concept_graph.png)
+
+*The shared concept map built from public talks (Oct 22, 72 talks at the time). Each dot is a concept; a line joins
+two concepts named in the same talk. The largest dot is Agent Harness.*
 
 ### On the laptop
 
@@ -89,6 +116,10 @@ There is also a nightly **Rule Tester** (`src/agent/verify.ts`, a systemd timer 
 recorded mistakes into candidate prompt rules and keeps a rule only if runs with it are at least as good as runs
 without it. Kept rules are stored in Backboard, where the card and map prompts read them.
 
+![Rules in Backboard, each made from recorded mistakes and kept only after testing, for example "Do not group terms that share a keyword but refer to different functional roles, architectural layers, or distinct technical paradigms."](docs/evidence/06-backboard/P_backboard_rules_dev.png)
+
+*Rules the Rule Tester kept, as stored in Backboard.*
+
 ### What happens when a check fails
 
 The models are never trusted on their own word. Code checks each answer, and a failure has a defined next step:
@@ -101,7 +132,9 @@ The models are never trusted on their own word. Code checks each answer, and a f
   and the merge marks it "(quote not verified)".
 - **Concept matching**: code keeps the model's answer only if it names one of the candidate concepts; otherwise the
   mention stays a new concept and a lesson is recorded.
-- **Workflow steps**: Temporal retries a failed step up to 3 times (5 minute timeout per step).
+- **Workflow steps**: Temporal retries a failed step up to 3 times (5 minute timeout per step). In a test I
+  force-killed the worker during `addToMap`: transcript and card did not run again, and the second attempt of
+  `addToMap` gave the same result as before ("concepts 4/4 same; category same"). See the screenshot below.
 - **Watchdog** (`src/cli/watchdog.ts`, every 3 hours): renews the YouTube subscriptions, reads each channel's
   feed to catch uploads the push missed, and restarts any talk that is not on the map yet. A talk that has a card but
   no category is restarted too; the transcript and card are cached, so only `addToMap` runs again. After 3 restarts
@@ -113,6 +146,10 @@ The models are never trusted on their own word. Code checks each answer, and a f
 ![A card document in MongoDB Atlas: model do/gemma-4-31B-it, 1 attempt, and four quotes with found true or false](docs/images/atlas-card-quote-check.png)
 
 *A card in Atlas (Oct 21, prompt v7): 3 of 4 quotes were found in the transcript, so only those 3 are shown.*
+
+![A Temporal run after the worker was killed: addToMap on its second attempt, card and transcript not run again, result "concepts 4/4 same; category same"](docs/evidence/03-temporal/E28_kill_timeline_dev.png)
+
+*The kill test in Temporal (Oct 21): `addToMap` on attempt 2, the run completed in 5 min 47 s.*
 
 ## My note, before and after
 
