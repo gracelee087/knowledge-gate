@@ -1,6 +1,6 @@
 # Evidence
 
-Screenshots and records behind the claims in the DEV post. Each one is a real screen or a read-only query result. Where I cropped or placed screenshots side by side, the file says so. Dates are October 2026, Europe/Berlin time unless marked UTC.
+Screenshots and records behind the claims in the README. Each one is a real screen or a read-only query result. Where I cropped or placed screenshots side by side, the file says so. Dates are October 2026, Europe/Berlin time unless marked UTC.
 
 Personal notes stay on the laptop. The only note shown here is `Agent Harness`, one of the four sample notes. Screens that show a speaker's name are not published here.
 
