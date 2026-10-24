@@ -16,6 +16,7 @@
   "license": "MIT",
   "type": "module",
   "dependencies": {
+    "@huggingface/transformers": "4.3.1",
     "@mastra/core": "^1.78.0",
     "@mastra/temporal": "^0.4.16",
     "@sentry/node": "^11.8.0",

@@ -59,6 +59,28 @@ It listens on 127.0.0.1 only and loads nothing from the internet.
 
 There are no automated tests yet.
 
+## Added on 2026-10-24
+
+Each item was run once on 2026-10-24. `npm run morning` now also runs the arXiv, hackathon and flight steps;
+if one of those fails, it is logged and the rest go on.
+
+- **arXiv papers** (`src/cli/sources.ts`): new cs.AI / cs.CL papers about agents; the abstract becomes a card
+  with the same quote check as a talk, using `do/gemma-4-31B-it`. One test card: 3 claims, 3 of 3 quotes found, 12 s.
+  `npx tsx src/cli/sources.ts --n 2`
+- **Answers to open questions** (`src/cli/merge.ts`): a claim that answers a question under `## Open questions`
+  in a note is marked 🔔 and listed first in `notes/00 Morning.md`. Text sources link to the page, not to a YouTube second.
+- **Hackathons** (`src/cli/hackathons.ts`): `notes/Hackathons.md` from hackathonhub.eu (sitemap and JSON-LD; the
+  first 20 event pages by default, a sample, not all events), the Devpost API and DEV challenge posts. No model;
+  every field is copied from the listing. `npx tsx src/cli/hackathons.ts [--hub N]`
+- **Flights** (`src/cli/flights.ts`): `notes/Travel.md` with Google Flights prices via SerpApi (cached per day) for
+  the trips in `notes/trips.json`, and the monthly fuel surcharge table (Korean Air, Asiana) from ktravelacademy.com.
+  `npx tsx src/cli/flights.ts`
+- **Profile from a CV** (`src/cli/persona.ts`): `notes/Me.md`, local Ollama only; every item is kept only if its
+  phrase is in the CV. Set `PYTHON` in `.env` to a real `python.exe` for a PDF CV.
+  `npx tsx src/cli/persona.ts <cv.pdf|cv.txt>`
+- **Voice questions** (`src/lib/stt.ts`): local Whisper (transformers.js 4.3.1) turns a spoken question on the
+  local page into text.
+
 ## License
 
 MIT © 2026 Sohee Lee

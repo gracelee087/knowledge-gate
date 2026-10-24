@@ -95,10 +95,13 @@ if (notes.length && unmatched.length) {
 }
 const byMeaning = unmatched.filter(c => home.get(c)).length;
 
+// The person's open questions: the "- " lines under a "## Open questions" heading in their own part of the note.
+const questionsOf = (note: typeof notes[number]) => (own(note).split(/\n## Open questions[^\n]*\n/)[1] ?? '').split('\n## ')[0]
+  .split('\n').filter(l => l.startsWith('- ')).map(l => l.slice(2).trim());
 const Judged = z.object({ judgments: z.array(z.object({
   claim: z.number().int(),
-  verdict: z.enum(['known', 'new', 'update', 'unrelated']),
-  evidence: z.string().describe('for "known" and "update": the sentence from the note, copied exactly; otherwise empty'),
+  verdict: z.enum(['known', 'new', 'update', 'answers', 'unrelated']),
+  evidence: z.string().describe('for "known" and "update": the sentence from the note, copied exactly; for "answers": the open question, copied exactly; otherwise empty'),
   revised: z.string().describe('for "update": the note sentence rewritten so it agrees with the claim; otherwise empty'),
 })) });
 const SYSTEM = `You help a person keep their own notes up to date with lectures they follow.
@@ -107,12 +110,14 @@ For each claim decide:
 - "known": the note already says the same thing (the same point, not only the same topic). Copy the sentence from the note that says it into "evidence", exactly as written.
 - "new": the note is about this topic but does not say it yet. Leave "evidence" empty.
 - "update": a sentence the person wrote says something this claim corrects, sharpens or makes outdated. Copy that sentence into "evidence" exactly as written, and put the sentence rewritten to agree with the claim into "revised" (same style, one sentence). Use this only when the note really needs to change.
+- "answers": the claim answers, fully or in part, one of the questions listed under "Open questions" in the note. Copy that question into "evidence" exactly as written.
 - "unrelated": the note is not about this topic at all. Leave "evidence" empty.
 Judge every claim once. English only. Answer with JSON matching the schema.`;
 
 commit(`before merge ${new Date().toISOString()}`);
 const plan: { note: typeof notes[number]; add: Claim[]; known: { c: Claim; evidence: string }[]; update: { c: Claim; old: string; revised: string }[] }[] = [];
 const covered = new Set<Claim>();
+const answers = new Map<Claim, string>(); // claim -> the open question it answers
 let fixed = 0;
 for (const note of notes) {
   const mine = claims.filter(c => home.get(c) === note);
@@ -134,6 +139,8 @@ for (const note of notes) {
       if (v?.verdict === 'known' && v.evidence.trim() && norm(note.text).includes(norm(v.evidence))) known.push({ c, evidence: v.evidence.trim() });
       // An edit is only proposed for a sentence the person wrote, copied exactly; the page applies it after approval.
       else if (v?.verdict === 'update' && v.revised.trim() && own(note).includes(v.evidence.trim()) && v.evidence.trim() !== v.revised.trim()) update.push({ c, old: v.evidence.trim(), revised: v.revised.trim() });
+      // An answer counts only for a question the person really wrote; otherwise it is added as a plain new point.
+      else if (v?.verdict === 'answers' && questionsOf(note).includes(v.evidence.trim())) { answers.set(c, v.evidence.trim()); add.push(c); }
       else { if (v?.verdict === 'known') fixed++; add.push(c); }
     });
     console.log(`${note.name}: claims ${s + 1}-${s + batch.length} judged in ${(r.ms / 1000).toFixed(0)} s`);
@@ -174,15 +181,17 @@ for (const { note, cs } of sections) {
 const edited = [...notes, ...sections.map(s => s.note)].filter(n => existsSync(new URL(n.file, notesDir)) && readFileSync(new URL(n.file, notesDir), 'utf8') !== n.text);
 if (edited.length) { console.log(`edited during the merge: ${edited.map(n => n.name).join(', ')}; nothing written, run again`); process.exit(1); }
 
+// A talk links to the second it was said; a text source (blog, paper, newsletter) links to the page.
+const cite = (c: Claim) => (/youtube\.com|youtu\.be/.test(c.url) ? `[${c.at}](${c.url}&t=${sec(c.at)}s)` : `[source](${c.url})`);
 // Write: append only.
-const day = new Date().toLocaleDateString('sv-SE'); // local date: just after midnight here, UTC is still the day before
+const day =new Date().toLocaleDateString('sv-SE'); // local date: just after midnight here, UTC is still the day before
 for (const p of plan.filter(p => p.add.length)) {
   const byLecture = groupBy(p.add, c => c.videoId);
   const block = [
     ...(p.note.text.includes('\n## From lectures') ? [] : ['', '## From lectures', '']),
     ...[...byLecture.values()].flatMap(cs => [
       `### merged ${day} · [${cs[0].title}](${cs[0].url})`,
-      ...cs.map(c => `- ${c.claim}${c.quote ? ` — "${c.quote}"` : ''} [${c.at}](${c.url}&t=${sec(c.at)}s)`),
+      ...cs.map(c => `- ${answers.has(c) ? `🔔 answers "${answers.get(c)}": ` : ''}${c.claim}${c.quote ? ` — "${c.quote}"` : ''} ${cite(c)}`),
       '',
     ]),
   ].join('\n');
@@ -194,7 +203,7 @@ const PROPOSALS = new URL('.proposals.json', notesDir);
 const proposals: any[] = existsSync(PROPOSALS) ? JSON.parse(readFileSync(PROPOSALS, 'utf8')) : [];
 for (const p of plan) for (const u of p.update) proposals.push({
   id: `${day}-${proposals.length + 1}`, date: day, note: p.note.name, old: u.old, revised: u.revised,
-  claim: u.c.claim, quote: u.c.quote, at: u.c.at, title: u.c.title, link: `${u.c.url}&t=${sec(u.c.at)}s`, status: 'open',
+  claim: u.c.claim, quote: u.c.quote, at: u.c.at, title: u.c.title, link: cite(u.c).replace(/^\[[^\]]*\]\((.*)\)$/, '$1'), status: 'open',
 });
 writeFileSync(PROPOSALS, JSON.stringify(proposals, null, 1));
 const proposed = plan.reduce((a, p) => a + p.update.length, 0);
@@ -206,6 +215,8 @@ writeFileSync(new URL('00 Morning.md', notesDir), [
   `# Morning ${day}`, '',
   `Generated by the morning merge (local model ${model}); rewritten every morning. Your notes are only appended to.`, '',
   `${todo.length} new lecture${todo.length > 1 ? 's' : ''}. In your notes: ${plan.reduce((a, p) => a + p.add.length, 0)} new points added, ${plan.reduce((a, p) => a + p.known.length, 0)} skipped because you already have them, ${proposed} edit${proposed === 1 ? '' : 's'} proposed (apply them on the page).`, '',
+  '## 🔔 Answers to your open questions', '',
+  ...[...answers].map(([c, q]) => `- "${q}" — ${c.claim} (${c.title})`), ...(answers.size ? [] : ['- none today']), '',
   '## Added to your notes', '',
   ...plan.filter(p => p.add.length).map(p => `- [[${p.note.name}]]: ${p.add.length} new`), '',
   '## Skipped: you already have these', '',

@@ -53,7 +53,8 @@ async function geminiChat(id: string, system: string, user: string, jsonSchema?:
       systemInstruction: { parts: [{ text: system }] },
       contents: [{ role: 'user', parts: [{ text: user }] }],
       generationConfig: { temperature: 0.2, ...(jsonSchema && { responseMimeType: 'application/json', responseJsonSchema: jsonSchema }) },
-    }),
+      // The Card schema's maxItems bounds make Gemini answer 400 INVALID_ARGUMENT; drop them here, zod still checks them.
+    }, (k, v) => k === 'maxItems' ? undefined : v),
   });
   const j: any = await res.json();
   if (!res.ok) throw new Error(`Gemini ${res.status}: ${JSON.stringify(j).slice(0, 1500)}`);

@@ -223,6 +223,12 @@
   textarea:focus { outline:2px solid var(--accent); outline-offset:-1px; }
   #send { font-weight:600; padding:12px 18px; border-radius:14px; border:0; background:var(--accent); color:var(--accent-ink); cursor:pointer; }
   #send:disabled { opacity:.5; cursor:default; }
+  #mic { flex:none; width:46px; height:46px; border-radius:14px; border:1px solid var(--rule); background:var(--bg); cursor:pointer; font-size:18px; }
+  #mic:hover { border-color:var(--accent); }
+  #mic.rec { background:var(--red); border-color:var(--red); animation:pulse 1.2s infinite; }
+  #mic:disabled { opacity:.5; cursor:default; }
+  @keyframes pulse { 50% { box-shadow:0 0 0 6px color-mix(in srgb, var(--red) 25%, transparent); } }
+  .quick-l { margin-top:8px; padding-left:20px; color:var(--ink2); font-size:14px; }
 </style>
 </head>
 <body>
@@ -249,7 +255,7 @@
   </div>
   <form id="f">
     <div class="seg" id="model"></div>
-    <div class="row"><textarea id="q" rows="1" placeholder="Ask a question…"></textarea><button id="send">Ask</button></div>
+    <div class="row"><button type="button" id="mic" title="Speak a question (Whisper on this laptop)">🎤</button><textarea id="q" rows="1" placeholder="Ask, or press 🎤 and speak…"></textarea><button id="send">Ask</button></div>
   </form>
 </section>
 </main>
@@ -505,7 +511,7 @@ function renderAnswer(text, n) {
   return html + (list ? '</ul>' : '');
 }
 function renderSources(a, n) {
-  if (!a.sources.length) return '<div class="warn">The answer cites no source; treat it as unsupported.</div>';
+  if (!a.sources.length) return a.model.startsWith('search') ? '' : '<div class="warn">The answer cites no source; treat it as unsupported.</div>';
   return `<div class="sources">${a.sources.map(s => {
     const chip = `<span class="cite">${s.id}</span>`;
     if (s.kind === 'morning') return `<div class="src" id="s${n}-M">${chip}<div>Today's morning page</div></div>`;
@@ -519,26 +525,190 @@ $('#log').addEventListener('click', e => {
   if (src) { src.classList.add('hl'); src.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); setTimeout(() => src.classList.remove('hl'), 1600); }
 });
 
+// A quick answer ("what's new today", hackathons, flights, latest material): made by code from the morning's files, no model.
+const renderQuick = (q, heard) => `<p>${esc(q.say)}</p><ul class="quick-l">${q.lines.map(l => `<li>${esc(l)}</li>`).join('')}</ul>
+  <div class="sources">${q.links.map(l => `<div class="src"><span class="cite">↗</span><div>${ext(l.url, esc(l.label))}</div></div>`).join('')}</div>
+  <div class="meta">Quick answer · code from ${esc(q.source)} · ${q.ms} ms${heard ? ` · asked by voice, Whisper ${(heard.sttMs / 1000).toFixed(1)} s on this laptop` : ''}</div>`;
+// A question asked by voice gets its answer read out, with the browser's own voices. Each job on the AI team has its own
+// voice (first name that exists wins, then pitch and rate keep them apart). Answers built from the notes use local
+// voices only; the public-data jobs (hackathons, flights, papers) may use the browser's online voices, which sound better.
+const TEAM = {
+  today: { name: 'Note Merger', local: true, voices: [/Zira/, /Hazel/], pitch: 1.05, rate: 1 },
+  notes: { name: 'Notes Assistant', local: true, voices: [/David/, /George/], pitch: 0.95, rate: 0.98 },
+  hackathons: { name: 'Hackathon Scout', voices: [/Guy.*Natural/, /Christopher/, /Google US English/, /Mark/], pitch: 1, rate: 1.08 },
+  flights: { name: 'Travel Agent', voices: [/Aria.*Natural/, /Jenny/, /Google UK English Female/, /Susan|Hazel/], pitch: 1.1, rate: 1 },
+  latest: { name: 'Paper Reader', voices: [/Ryan.*Natural/, /Google UK English Male/, /George/, /David/], pitch: 0.9, rate: 0.95 },
+  host: { name: 'Host', voices: [/Jenny/, /Aria/, /Zira/], pitch: 1, rate: 1.02 },
+};
+const agentTag = who => `<div class="meta" style="margin:0 0 6px;font-weight:600">🎙 ${esc(TEAM[who]?.name ?? '')}</div>`;
+// With --voices elevenlabs the server returns each job's ElevenLabs voice; if that fails, the browser voice below speaks.
+let eleven = fetch('/api/voices').then(r => r.json()).then(j => j.elevenlabs).catch(() => false), playing = null, said = 0;
+async function speak(text, who = 'notes') {
+  if (playing) { playing.pause(); playing = null; }
+  const me = ++said; // a later speak wins: a waiting line whose audio arrives after the answer is dropped
+  if (await eleven) {
+    try {
+      // Streamed: the audio starts as soon as the first part arrives (GET /api/tts).
+      const a = new Audio(`/api/tts?${new URLSearchParams({ text, who })}`);
+      if (window.speechSynthesis) speechSynthesis.cancel();
+      playing = a; await a.play();
+      if (me !== said) a.pause();
+      return;
+    } catch {}
+  }
+  if (!window.speechSynthesis) return;
+  speechSynthesis.cancel();
+  const a = TEAM[who] ?? TEAM.notes, all = speechSynthesis.getVoices().filter(v => v.lang.startsWith('en') && (!a.local || v.localService));
+  const u = new SpeechSynthesisUtterance(text);
+  u.voice = a.voices.map(re => all.find(v => re.test(v.name))).find(Boolean) ?? all[0] ?? null; u.lang = u.voice?.lang ?? 'en-US';
+  u.pitch = a.pitch; u.rate = a.rate;
+  speechSynthesis.speak(u);
+}
+// Resolves when the current line has finished playing (or keep() turns false).
+const spoken = async (keep = () => true) => {
+  while (keep() && (playing ? !playing.ended && !playing.paused : window.speechSynthesis?.speaking)) await new Promise(r => setTimeout(r, 200));
+};
+// Background music (demo only, --voices elevenlabs): quiet under the host while waiting, or relaxing for "I'm tired".
+let bg = null;
+async function startMusic(kind) {
+  stopMusic();
+  if (!(await eleven)) return;
+  bg = new Audio(`/api/music/${kind}`); bg.loop = true; bg.volume = kind === 'wait' ? 0.12 : 0.5;
+  bg.play().catch(() => {});
+}
+const stopMusic = () => { if (bg) { bg.pause(); bg = null; } };
+const BRIEF = /good morning|morning brief|brief me|briefing|what'?s (up|on) today|오늘 뭐/i;
+const TIRED = /\b(tired|exhausted|sleepy|need a break|relax)\b|피곤|힘들어/i;
+const RELAX_LINE = "You've worked hard today, Ms Lee. Take a breath. Here's something calm for a few minutes.";
+
+// While a spoken question is being answered, from the moment the mic stops: if nothing was said after 1.5 s, the host
+// talks over quiet music: greeting, weather, news headlines, a hackathon, the flight price (/api/fillers), one line
+// after another. stop() ends it when the answer arrives; talked says whether the host said anything.
+let host = null;
+function startHost() {
+  const h = { on: true, talked: false, ready: 'Your answer is ready.' };
+  h.timer = setTimeout(async () => {
+    h.talked = true; startMusic('wait');
+    const f = await fetch('/api/fillers').then(r => r.json()).catch(() => ({ lines: ['Looking through your notes, this takes a while.'] }));
+    if (f.ready) h.ready = f.ready;
+    for (const l of f.lines) {
+      if (!h.on) return;
+      await speak(l, 'host');
+      await spoken(() => h.on);
+      await new Promise(r => setTimeout(r, 1500));
+    }
+  }, 1500);
+  h.stop = () => { h.on = false; clearTimeout(h.timer); stopMusic(); };
+  return h;
+}
+
 let asked = 0;
-async function submit() {
+async function submit(heard) {
   const q = $('#q').value.trim(); if (!q || busy) return;
-  busy = true; $('#send').disabled = true; $('#q').value = ''; grow();
+  busy = true; $('#send').disabled = true; $('#mic').disabled = true; $('#q').value = ''; grow();
   const n = ++asked, log = $('#log');
   log.insertAdjacentHTML('beforeend', `<div class="msg me">${esc(q)}</div><div class="msg bot" id="a${n}"><div class="thinking"><span class="dots"><span></span><span></span><span></span></span><span>Thinking on this laptop · <span id="t${n}">0</span> s</span></div></div>`);
   log.scrollTop = log.scrollHeight;
   const t0 = Date.now(), tick = setInterval(() => { const t = $(`#t${n}`); if (t) t.textContent = Math.round((Date.now() - t0) / 1000); }, 1000);
+  if (!heard) stopMusic();
+  // "Good morning" / "brief me": the three things I follow, one after another, each by its own agent:
+  // the newest AI talks, hackathons, then flights. These are quick answers whose voices were made at server start.
+  if (heard && BRIEF.test(q)) {
+    const greeted = host?.talked; host?.stop(); host = null; // the host may have greeted already while Whisper ran
+    const f = await fetch('/api/fillers').then(r => r.json()).catch(() => ({ lines: [] }));
+    const parts = await Promise.all(['Latest material?', 'Any hackathons worth going to?', 'Flights to Korea?'].map(x =>
+      fetch('/api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: x, model, voice: true }) }).then(r => r.json()).then(j => j.quick).catch(() => null)));
+    $(`#a${n}`).innerHTML = parts.filter(Boolean).map(p => agentTag(p.topic) + renderQuick(p, heard)).join('<hr style="border:0;border-top:1px solid var(--line, #ddd);margin:12px 0">');
+    clearInterval(tick); busy = false; $('#send').disabled = false; $('#mic').disabled = false;
+    if (f.lines?.[0] && !greeted) { await speak(f.lines[0].replace(/ (Let me|I'm) look[^.]*\.| Let's look back[^.]*\./, ''), 'host'); await spoken(); }
+    for (const p of parts.filter(Boolean)) { await speak(`${TEAM[p.topic]?.name ?? ''} here. ${p.say}`, p.topic); await spoken(); }
+    return;
+  }
+  // "I'm tired": no model, the host says one line and plays the relaxing music until the next question.
+  if (heard && TIRED.test(q)) {
+    h?.stop();
+    $(`#a${n}`).innerHTML = agentTag('host') + `<p>${esc(RELAX_LINE)}</p>`;
+    clearInterval(tick); busy = false; $('#send').disabled = false; $('#mic').disabled = false;
+    await speak(RELAX_LINE, 'host'); await spoken(); startMusic('relax');
+    return;
+  }
+  // The host has been timing this spoken question since the mic stopped (startHost below).
+  const h = heard ? (host ?? startHost()) : null; host = null;
   try {
-    const r = await fetch('/api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: q, model }) });
+    // A spoken notes question uses the faster model (e4b); typed questions use the one picked on the page, as before.
+    const r = await fetch('/api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(heard ? { question: q, model: 'ollama/gemma4:e4b', voice: true } : { question: q, model }) });
     const a = await r.json();
+    const hosted = h?.talked; // the host was talking: hand over with the "ready" line
+    h?.stop();
     if (!r.ok) throw new Error(a.error);
-    $(`#a${n}`).innerHTML = renderAnswer(a.text, n) + renderSources(a, n)
-      + `<div class="meta">${a.claims} lecture claims searched · ${plural(a.notes, 'note')} used · Notes Assistant (${esc(a.model.replace('ollama/', ''))}) in Ollama · ${a.seconds} s</div>`;
+    if (a.quick) {
+      $(`#a${n}`).innerHTML = (heard ? agentTag(a.quick.topic) : '') + renderQuick(a.quick, heard);
+      if (heard) {
+        if (hosted) { await spoken(); await speak(h.ready, 'host'); await spoken(); } // let the host finish the line first
+        speak(`${TEAM[a.quick.topic]?.name ?? ''} here. ${a.quick.say}`, a.quick.topic);
+      }
+    } else {
+      $(`#a${n}`).innerHTML = (heard ? agentTag('notes') : '') + renderAnswer(a.text, n) + renderSources(a, n)
+        + `<div class="meta">${a.claims} lecture claims searched · ${plural(a.notes, 'note')} used · ${a.model.startsWith('ollama/') ? `Notes Assistant (${esc(a.model.replace('ollama/', ''))}) in Ollama` : `Notes Assistant · ${esc(a.model)}`} · ${a.seconds} s</div>`;
+      if (heard) {
+        if (hosted) { await spoken(); await speak(h.ready, 'host'); await spoken(); } // let the host finish the line first
+        speak(a.text.replace(/\[[^\]]*\]/g, '').replace(/\*\*/g, '')); // without the [C1] citations
+      }
+    }
   } catch (err) {
+    h?.stop();
     $(`#a${n}`).innerHTML = `<div class="warn">Could not answer: ${esc(err.message)}</div>`;
   }
-  clearInterval(tick); busy = false; $('#send').disabled = false;
+  clearInterval(tick); busy = false; $('#send').disabled = false; $('#mic').disabled = false;
   $(`#a${n}`).scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
+
+// Voice: record the mic, resample to 16 kHz mono float32 in the browser, send the raw samples to /api/voice
+// (Whisper on the laptop), then put the transcript in the ask box and send it like a typed question.
+// Click to start; it stops by itself 1.2 s after you stop talking (or click again, or after 15 s).
+let rec = null;
+async function startRec() {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
+  const ctx = new AudioContext(), src = ctx.createMediaStreamSource(stream), node = ctx.createScriptProcessor(4096, 1, 1), parts = [];
+  let spoke = false, quiet = 0;
+  node.onaudioprocess = e => {
+    const d = e.inputBuffer.getChannelData(0); parts.push(new Float32Array(d));
+    let sum = 0; for (const x of d) sum += x * x;
+    if (Math.sqrt(sum / d.length) > 0.015) { spoke = true; quiet = 0; } else if (spoke && (quiet += d.length / ctx.sampleRate) > 1.2) stopRec();
+  };
+  src.connect(node); node.connect(ctx.destination);
+  rec = { stream, ctx, node, parts, timer: setTimeout(stopRec, 15000) };
+  $('#mic').classList.add('rec'); $('#mic').title = 'Stop and ask'; $('#q').placeholder = 'Listening… click 🎤 again to ask';
+  window.speechSynthesis?.cancel(); playing?.pause(); stopMusic();
+}
+async function stopRec() {
+  if (!rec) return;
+  const { stream, ctx, node, parts, timer } = rec; rec = null;
+  clearTimeout(timer); node.disconnect(); stream.getTracks().forEach(t => t.stop());
+  $('#mic').classList.remove('rec'); $('#mic').title = 'Speak a question (Whisper on this laptop)';
+  const len = parts.reduce((a, p) => a + p.length, 0), rate = ctx.sampleRate; await ctx.close();
+  if (len < rate / 4) { $('#q').placeholder = 'Ask, or press 🎤 and speak…'; return; } // under a quarter second: a stray click
+  const buf = new AudioBuffer({ length: len, numberOfChannels: 1, sampleRate: rate });
+  let o = 0; for (const p of parts) { buf.copyToChannel(p, 0, o); o += p.length; }
+  const off = new OfflineAudioContext(1, Math.ceil(len * 16000 / rate), 16000), s = off.createBufferSource();
+  s.buffer = buf; s.connect(off.destination); s.start();
+  const samples = (await off.startRendering()).getChannelData(0);
+  $('#mic').disabled = true; $('#q').placeholder = 'Transcribing on this laptop…';
+  host = startHost();
+  try {
+    const r = await fetch('/api/voice', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: samples });
+    const v = await r.json();
+    if (!r.ok) throw new Error(v.error);
+    $('#mic').disabled = false; $('#q').placeholder = 'Ask, or press 🎤 and speak…';
+    if (!v.transcript) throw new Error('heard nothing; try again a little closer to the mic');
+    $('#q').value = v.transcript; grow(); submit(v);
+  } catch (err) {
+    host?.stop(); host = null;
+    $('#mic').disabled = false; $('#q').placeholder = `Voice: ${err.message}`;
+  }
+}
+// While recording, the mic button stays enabled (busy is false), so a second click stops.
+$('#mic').addEventListener('click', () => { if (rec) stopRec(); else if (!busy) startRec().catch(err => alert(`Microphone: ${err.message}`)); });
 $('#f').addEventListener('submit', e => { e.preventDefault(); submit(); });
 $('#q').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } });
 const grow = () => { const t = $('#q'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 150) + 'px'; };

@@ -1,16 +1,24 @@
 // The local page: my notes (with what the morning merge appended) and a chat that asks src/lib/ask.ts.
 // It listens on 127.0.0.1 only, the page loads nothing from the internet, and the models run in local Ollama,
 // so it works with Wi-Fi off. Notes are only read.
-// Usage: npx tsx src/cli/web.ts [--port 4321]   then open http://127.0.0.1:4321
+// Usage: npx tsx src/cli/web.ts [--port 4321] [--voices elevenlabs]   then open http://127.0.0.1:4321
+// Questions can also be spoken (the mic button): Whisper transcribes on the laptop and the browser speaks the answer.
 import { createServer } from 'node:http';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { ask } from '../lib/ask.ts';
+import { ask, recall, deeper } from '../lib/ask.ts';
+import { quick } from '../lib/quick.ts';
+import { transcribe } from '../lib/stt.ts';
+import { speech, speechTo, TEAM_VOICES } from '../lib/tts.ts';
+import { fillers, homeCity, READY } from '../lib/fillers.ts';
+import { music } from '../lib/music.ts';
 
 const root = new URL('../../', import.meta.url);
 const arg = (name: string) => (process.argv.indexOf(name) > 0 ? process.argv[process.argv.indexOf(name) + 1] : null);
 const PORT = Number(arg('--port') ?? 4321);
+const VOICES = arg('--voices'); // "elevenlabs": the AI team speaks with ElevenLabs voices (src/lib/tts.ts); default: browser voices
+const MORE = /tell me more|more about|in (more )?detail|deeper|go deep|explain/i; // a follow-up that wants depth, not the quick summary
 const MODELS = ['ollama/gemma4:12b', 'ollama/gemma4:e4b']; // 12b answers better, e4b about 3x faster (E13, E25)
 const notesDir = new URL('notes/', root);
 
@@ -107,10 +115,56 @@ createServer(async (req, res) => {
     if (req.method === 'POST' && req.url === '/api/ask') {
       let body = '';
       for await (const chunk of req) body += chunk;
-      const { question, model } = JSON.parse(body);
+      const { question, model, voice } = JSON.parse(body);
       if (typeof question !== 'string' || !question.trim() || question.length > 500) return send(res, 400, JSON.stringify({ error: 'question: 1 to 500 characters' }));
       if (!MODELS.includes(model)) return send(res, 400, JSON.stringify({ error: `model: one of ${MODELS.join(', ')}` }));
-      return send(res, 200, JSON.stringify(await ask(question.trim(), model)));
+      // Spoken questions only: "what's new today", hackathons, flights and the latest material are answered by code
+      // from the files, at once (src/lib/quick.ts). Typed questions always go to the Notes Assistant, as before.
+      const q = voice === true && !MORE.test(question) ? quick(question) : null;
+      if (q) return send(res, 200, JSON.stringify({ quick: q }));
+      // A spoken notes question is answered from the search alone (seconds); a typed one by the Notes Assistant, as before.
+      // "Tell me more about ... today's talk": the closest parts of the newest talk.
+      const talk = voice === true && MORE.test(question) && /talk|lecture|today/i.test(question) ? quick('latest material')?.links[0]?.url : undefined;
+      if (talk) return send(res, 200, JSON.stringify(await deeper(question.trim(), talk)));
+      return send(res, 200, JSON.stringify(voice === true ? await recall(question.trim()) : await ask(question.trim(), model)));
+    }
+    if (req.method === 'POST' && req.url === '/api/voice') {
+      // The page sends raw 16 kHz mono float32 samples; Whisper runs here (src/lib/stt.ts), so audio stays on the laptop.
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) chunks.push(chunk);
+      const buf = Buffer.concat(chunks);
+      if (!buf.length || buf.length % 4 || buf.length > 16000 * 4 * 60) return send(res, 400, JSON.stringify({ error: 'body: 16 kHz mono float32 samples, at most 60 s' }));
+      const samples = new Float32Array(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.length)); // copy: Float32Array needs 4-byte alignment
+      const { text, ms } = await transcribe(samples);
+      // The page puts the transcript in the ask box and sends it to /api/ask, like a typed question.
+      return send(res, 200, JSON.stringify({ transcript: text, sttMs: ms, seconds: +(samples.length / 16000).toFixed(1) }));
+    }
+    if (req.method === 'GET' && req.url === '/api/voices') return send(res, 200, JSON.stringify({ elevenlabs: VOICES === 'elevenlabs' }));
+    // What the host says while a slow spoken answer is coming (src/lib/fillers.ts).
+    if (req.method === 'GET' && req.url === '/api/fillers') return send(res, 200, JSON.stringify({ lines: await fillers(homeCity(arg('--city'))), ready: READY }));
+    // Background music for the wait and for "I'm tired" (demo only, made once by ElevenLabs, src/lib/music.ts).
+    if (req.method === 'GET' && (req.url === '/api/music/wait' || req.url === '/api/music/relax')) {
+      if (VOICES !== 'elevenlabs') return send(res, 404, JSON.stringify({ error: 'start with --voices elevenlabs' }));
+      res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'max-age=3600' });
+      return res.end(await music(req.url.endsWith('relax') ? 'relax' : 'wait'));
+    }
+    if (req.method === 'GET' && req.url?.startsWith('/api/tts?')) {
+      // Streamed voice for the page's <audio>: playback starts while ElevenLabs is still making the clip.
+      if (VOICES !== 'elevenlabs') return send(res, 404, JSON.stringify({ error: 'start with --voices elevenlabs' }));
+      const p = new URL(req.url, 'http://x').searchParams, text = p.get('text') ?? '';
+      if (!text.trim() || text.length > 1500) return send(res, 400, JSON.stringify({ error: 'text: 1 to 1500 characters' }));
+      return speechTo(res, text, p.get('who') ?? 'notes');
+    }
+    if (req.method === 'POST' && req.url === '/api/tts') {
+      // Demo only (--voices elevenlabs): the answer's text goes to ElevenLabs and comes back as the job's voice.
+      if (VOICES !== 'elevenlabs') return send(res, 404, JSON.stringify({ error: 'start with --voices elevenlabs' }));
+      let body = '';
+      for await (const chunk of req) body += chunk;
+      const { text, who } = JSON.parse(body);
+      if (typeof text !== 'string' || !text.trim() || text.length > 1500) return send(res, 400, JSON.stringify({ error: 'text: 1 to 1500 characters' }));
+      const audio = await speech(text, String(who));
+      res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store' });
+      return res.end(audio);
     }
     if (req.method === 'POST' && (req.url === '/api/proposal' || req.url === '/api/watch')) {
       let body = '';
@@ -130,4 +184,17 @@ createServer(async (req, res) => {
   } catch (e: any) {
     send(res, 500, JSON.stringify({ error: String(e?.message ?? e) }));
   }
-}).listen(PORT, '127.0.0.1', () => console.log(`lecture-gate on this laptop: http://127.0.0.1:${PORT}`));
+}).listen(PORT, '127.0.0.1', async () => {
+  console.log(`lecture-gate on this laptop: http://127.0.0.1:${PORT}`);
+  // Load the embedding model and the note vectors now, so the first spoken question answers in under a second.
+  await recall('agent harness').catch(e => console.log(`search not warmed: ${e.message}`));
+  if (VOICES !== 'elevenlabs') return;
+  // Make the voice for the waiting lines and the usual spoken questions now, so they play at once when asked.
+  const said: [string, string][] = [...await fillers(homeCity(arg('--city'))), READY].map(l => [l, 'host']);
+  for (const q of ['What is new today?', 'Any hackathons worth going to?', 'Flights to Korea?', 'Latest material?']) {
+    const a = quick(q);
+    if (a) said.push([`${TEAM_VOICES[a.topic].name} here. ${a.say}`, a.topic]);
+  }
+  for (const [text, who] of said) await speech(text, who).catch(e => console.log(`voice not made (${who}): ${e.message}`));
+  console.log(`voices ready: ${said.length} lines`);
+});
