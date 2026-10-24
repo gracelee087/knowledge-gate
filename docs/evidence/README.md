@@ -59,7 +59,7 @@ Files ending in `_dev.png` are crops of the screenshots listed here, cut to the 
 
 | File | What it shows |
 |---|---|
-| `DO_cost_compact.png` | Month-to-date bill, Oct 1–21. lecture-gate is GenAI Serverless Inference $0.83 + Droplets $0.02; "Apps $1.48" is another project on the same account |
+| `DO_cost_compact.png` | Month-to-date bill, Oct 1–21. knowledge-gate is GenAI Serverless Inference $0.83 + Droplets $0.02; "Apps $1.48" is another project on the same account |
 | `DO_droplet_cpu_disk.png`, `DO_droplet_bandwidth.png` | The 1 vCPU droplet during runs |
 
 ## Figures

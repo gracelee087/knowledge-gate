@@ -27,7 +27,7 @@ const sec = (mmss: string) => mmss.split(':').map(Number).reduce((a, b) => a * 6
 const at = (c: any, mmss: string) => `[${mmss}](${c.url}&t=${sec(mmss)}s)`;
 const date = (videoId: string) => {
   const v = videos.find(x => x.videoId === videoId);
-  const d = new Date(FETCHED.getTime() - v.ageDays * 86400000);
+  const d = v.ageDays == null ? new Date(v.published) : new Date(FETCHED.getTime() - v.ageDays * 86400000); // entries without ageDays only have published
   return `~${d.toISOString().slice(0, 10)}`; // YouTube only says "N weeks ago", so dates are approximate
 };
 const conceptsOf = (videoId: string) => [...new Set(concepts.filter(m => m.videoId === videoId).map(m => m.concept))];

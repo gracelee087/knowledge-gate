@@ -1,4 +1,4 @@
-# lecture-gate
+# knowledge-gate
 
 **AI engineering talks come out faster than I can watch them. Open Gemma models watch them for me and add only
 what is new to my own notes, and my notes never leave my laptop.**
@@ -7,6 +7,8 @@ what is new to my own notes, and my notes never leave my laptop.**
 
 *The morning page at `http://127.0.0.1:4321` (Oct 22). Speaker names are blurred in this screenshot.*
 
+> The project's working name was lecture-gate. Internal names keep it: the Atlas database `lecture_gate`, the Sentry
+> project, the Temporal task queue, the Backboard assistant and the `lg-*` services. Some screenshots show that name.
 
 ## At a glance
 
@@ -16,7 +18,7 @@ what is new to my own notes, and my notes never leave my laptop.**
 | **Gemma 4** | Gemma 4 31B writes the cards and joins concepts on the server; Gemma 4 12B and EmbeddingGemma in Ollama merge my notes and answer on the laptop. [The AI agents](#the-ai-agents-one-job-each) |
 | **Never pretends** | Every quote is checked word for word by code; a failed check loops back, becomes a lesson, and a tested rule. If something is not in my notes, it says so. [What happens when a check fails](#what-happens-when-a-check-fails) |
 | **Private** | My notes never leave the laptop; only public talk data goes through MongoDB Atlas. [Privacy](#privacy) |
-| **Voice** | Whisper runs on the laptop; spoken answers come from my notes and the talks. With `--voices elevenlabs`, ElevenLabs voices the answers and the morning briefing, and plays calm music when I say I'm tired. [Ask by voice](#ask-by-typing-or-by-voice) |
+| **Voice** | Optional: with `--stt whisper`, Whisper runs on the laptop; spoken answers come from my notes and the talks. With `--voices elevenlabs`, ElevenLabs voices the answers and the morning briefing, and plays calm music when I say I'm tired. [Ask by voice](#ask-by-typing-or-by-voice) |
 | **Real tools, real runs** | Mastra on Temporal, MongoDB Atlas Vector Search, Sentry, SerpApi, Backboard, DigitalOcean. [Screenshots](#the-tools-in-real-use) |
 | **Open source** | MIT. [Run it](#run-it) |
 
@@ -46,7 +48,7 @@ Screenshots from my own accounts, taken while the system ran on real talks (Oct 
 <td></td>
 </tr>
 <tr>
-<td><em><b>DigitalOcean</b>, Oct 1–21: lecture-gate is GenAI Serverless Inference $0.83 + Droplets $0.02 ("Apps $1.48" is another project). Credits paid it all: total $0.00.</em></td>
+<td><em><b>DigitalOcean</b>, Oct 1–21: knowledge-gate is GenAI Serverless Inference $0.83 + Droplets $0.02 ("Apps $1.48" is another project). Credits paid it all: total $0.00.</em></td>
 <td></td>
 </tr>
 </table>
@@ -67,7 +69,7 @@ Two rules shaped the design:
 
 ## How it works
 
-![lecture-gate flow: on the server, every new talk goes YouTube → transcript (SerpApi) → card + checks (Gemma 4 31B) → concept map (bge-m3, MongoDB Atlas); every night failed checks become tested rules in Backboard; only public lecture data comes down to the laptop, where Ollama merges new points into my notes, builds the morning page and answers questions](docs/evidence/figures/lecture-gate-flow.png)
+![knowledge-gate flow: on the server, every new talk goes YouTube → transcript (SerpApi) → card + checks (Gemma 4 31B) → concept map (bge-m3, MongoDB Atlas); every night failed checks become tested rules in Backboard; only public lecture data comes down to the laptop, where Ollama merges new points into my notes, builds the morning page and answers questions](docs/evidence/figures/lecture-gate-flow.png)
 
 <details>
 <summary>The same flow as a diagram with the step names in the code</summary>
@@ -88,7 +90,7 @@ flowchart LR
     P --> NM[Note Merger<br/>Gemma 4 12B + EmbeddingGemma<br/>Ollama]
     NM --> N[my notes/<br/>own git]
     N --> W[morning page<br/>127.0.0.1:4321]
-    W --> V[ask by voice<br/>Whisper on the laptop]
+    W --> V[ask by voice, optional<br/>Whisper on the laptop]
     W --> TY[ask by typing<br/>Notes Assistant]
   end
 ```
@@ -237,7 +239,8 @@ seconds (one test on Oct 24 took 147 s with E4B).
 
 ![A typed question about the "Disposable Software" idea and my Code review note, answered with citations C1 and N1](docs/images/notes-assistant-typed.png)
 
-**By voice**, press the mic button and speak. Whisper (`onnx-community/whisper-base` through transformers.js) turns
+**By voice** (optional): start the page server with `--stt whisper`, then press the mic button and speak. Without the
+flag there is no mic button and the Whisper model is never loaded. Whisper (`onnx-community/whisper-small` through transformers.js) turns
 the speech into text on the laptop, so the audio never leaves it. Spoken questions are answered by code, without a
 language model, so they come back fast:
 
@@ -264,16 +267,16 @@ That mode is for the demo only.
 - Personal notes are read only by models running in local Ollama. `src/cli/merge.ts` refuses any model that is not
   `ollama/...`.
 - `notes/` and `data/` are gitignored; only public talk data goes to MongoDB Atlas.
-- Voice is transcribed on the laptop; the Whisper weights are downloaded once.
+- Voice (only with `--stt whisper`) is transcribed on the laptop; the Whisper weights are downloaded once.
 - Exceptions, so you know exactly what goes out from the laptop: the morning pull from Atlas; in ElevenLabs demo
   mode, the spoken answer text; and while a slow spoken answer is loading, the page server fetches the weather from
-  Open-Meteo (only the city name is sent) for the host's waiting lines, and also requests the Hacker News top
+  Open-Meteo, only when started with `--city <name>` (only the city name is sent), for the host's waiting lines, and also requests the Hacker News top
   stories (see the last limit below).
 
 ## Stack
 
 - **Models (all open weights)**: Google Gemma 4 31B on DigitalOcean serverless inference (server); Gemma 4 12B / E4B
-  and EmbeddingGemma in Ollama (laptop); BAAI bge-m3 embeddings (server); Whisper base via transformers.js (laptop).
+  and EmbeddingGemma in Ollama (laptop); BAAI bge-m3 embeddings (server); Whisper small via transformers.js (laptop, optional).
 - **Orchestration**: Mastra workflow on Temporal (`@mastra/temporal`), systemd units on a DigitalOcean Droplet.
 - **Data**: MongoDB Atlas with Vector Search; SerpApi for transcripts; Backboard for the tested prompt rules;
   Sentry for errors and model-call timings on the server (only timings and token counts, never prompts or outputs).
@@ -310,7 +313,7 @@ npm run web                           # the morning page on http://127.0.0.1:432
 npm run ask -- "a question"           # the Notes Assistant in the terminal
 ```
 
-`npm run web -- --voices elevenlabs` turns on the demo voices (needs an ElevenLabs API key in `.env` as `ELEBENT_API_KEY`, the name the code reads).
+`npm run web -- --stt whisper` turns on voice input. `npm run web -- --voices elevenlabs` turns on the demo voices (needs an ElevenLabs API key in `.env` as `ELEBENT_API_KEY`, the name the code reads).
 
 ## Where things are
 
@@ -322,7 +325,7 @@ npm run ask -- "a question"           # the Notes Assistant in the terminal
 | `src/agent/` | the concept map: batch build, adding one new talk, the nightly Rule Tester |
 | `src/cli/` | one script per task; each file starts with what it does and its usage |
 | `src/lib/ask.ts`, `src/lib/quick.ts` | typed and spoken answers |
-| `src/lib/stt.ts` | Whisper on the laptop |
+| `src/lib/stt.ts` | Whisper on the laptop (optional, `--stt whisper`) |
 | `docs/EXPERIMENTS.md` | the measurements behind each choice (models, thresholds) |
 | `docs/ISSUES.md` | known problems |
 
@@ -331,10 +334,11 @@ npm run ask -- "a question"           # the Notes Assistant in the terminal
 - There are no automated tests yet.
 - The typed Notes Assistant is slow on a laptop (minutes per answer), which is why spoken questions use search
   only.
-- The similarity thresholds (0.45 for note matching, 0.55 for reading a claim out as an answer) come from small
+- The similarity thresholds (0.45 for note matching and for reading a claim out as an answer) come from small
   experiments (`docs/EXPERIMENTS.md`); the 0.55 threshold for flagging answers to open questions was not tested on
   real questions.
-- Whisper base sometimes mishears names (for example, "approving alpha" for the talk "Proving Alpha").
+- Whisper often mishears names and terms (for example, "approving alpha" for the talk "Proving Alpha", "age and harness"
+  for "agent harness"), which is why voice input is off by default.
 - The pipeline only takes new uploads from the subscribed channels; it does not backfill older talks.
 - Talks narrated in Korean are skipped.
 - `src/lib/fillers.ts` still fetches Hacker News headlines that are no longer read out.

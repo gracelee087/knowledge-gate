@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>lecture-gate · on this laptop</title>
+<title>knowledge-gate · on this laptop</title>
 <style>
   /* Nothing is loaded from the internet: system fonts and inline icons only, so the page works with Wi-Fi off.
      The page reads like a well-kept note: a date, one section per talk (title, conclusion, summary), moments as a toggle. */
@@ -11,8 +11,8 @@
   :root {
     color-scheme:dark;
     --bg:#121110; --paper:#1a1916; --ink:#f0ece2; --ink2:#cdc7b9; --muted:#958e7f; --rule:#2e2b25; --rule2:#cdc7b9; --soft:#24221d;
-    --accent:#8fc9b4; --accent-ink:#0e1d18; --accent-soft:#1c2c26;
-    --hl:#3a3013; --hl-edge:#b98f22; --red:#ff6f62; --yt:#e62117; --ok:#2e8b57;
+    --accent:#8db4f5; --accent-ink:#0d1a2e; --accent-soft:#1a2436;
+    --hl:#3a3013; --hl-edge:#b98f22; --red:#ff6f62; --yt:#e62117; --ok:#3b82f6;
     --shadow:0 1px 2px rgba(0,0,0,.3), 0 14px 34px -14px rgba(0,0,0,.6);
     --sans:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
     --serif:var(--sans);
@@ -105,7 +105,7 @@
   .watch.on { background:var(--ink); color:var(--paper); border-color:var(--ink); }
   .callout { margin-top:14px; padding:11px 14px; border-radius:8px; background:var(--soft); border-left:3px solid var(--accent); font-size:15px; font-weight:600; line-height:1.5; color:var(--ink); }
   .lede { font-size:15px; line-height:1.7; color:var(--ink2); margin-top:12px; }
-  mark.key { color:var(--ink); background:rgba(111, 207, 151, .16); box-shadow:0 0 0 2px rgba(111, 207, 151, .16); border-radius:3px; }
+  mark.key { color:var(--ink); background:rgba(127, 168, 242, .18); box-shadow:0 0 0 2px rgba(127, 168, 242, .18); border-radius:3px; }
   /* the list of moments is a toggle, closed until clicked */
   .mbox { margin-top:12px; }
   .mbox > summary { list-style:none; cursor:pointer; display:inline-flex; align-items:center; gap:6px; font-size:13.5px; font-weight:600; color:var(--muted); padding:3px 0; }
@@ -235,7 +235,7 @@
 <header>
   <div class="logo">
     <span class="mark"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke-width="1.8" stroke-linecap="round"><path d="M3 3h4.5a1.5 1.5 0 0 1 1.5 1.5V13a1 1 0 0 0-1-1H3zM13 3H10.5A1.5 1.5 0 0 0 9 4.5V13a1 1 0 0 1 1-1h3z"/></svg></span>
-    <b>lecture-gate</b>
+    <b>knowledge-gate</b>
   </div>
   <span class="stat" id="net"><span class="dot"></span>…</span>
   <span class="stat" id="got"><span class="dot"></span>…</span>
@@ -255,7 +255,7 @@
   </div>
   <form id="f">
     <div class="seg" id="model"></div>
-    <div class="row"><button type="button" id="mic" title="Speak a question (Whisper on this laptop)">🎤</button><textarea id="q" rows="1" placeholder="Ask, or press 🎤 and speak…"></textarea><button id="send">Ask</button></div>
+    <div class="row"><button type="button" id="mic" title="Speak a question (Whisper on this laptop)" hidden>🎤</button><textarea id="q" rows="1" placeholder="Ask…"></textarea><button id="send">Ask</button></div>
   </form>
 </section>
 </main>
@@ -484,10 +484,11 @@ async function load() {
   index(); pills(); go('brief');
   const labels = { 'ollama/gemma4:12b': 'Gemma 4 12B · careful', 'ollama/gemma4:e4b': 'Gemma 4 E4B · faster' };
   $('#model').innerHTML = N.models.map(m => `<button type="button" data-m="${m}" class="${m === model ? 'on' : ''}">${labels[m] ?? m}</button>`).join('');
+  // Tapping a suggestion asks it like a spoken question (same quick search and voice), for when the mic can't hear.
   $('#chips').innerHTML = [
-    'What do the talks say about Agent Harness, and does it match my Agent Harness note?',
-    'Do any talks disagree with my Hybrid search note?',
-    'What is new for my Code review with agents note?',
+    'What was my original Agent Harness note, and what was updated?',
+    'How do I bake sourdough bread?',
+    'What is an agent harness?',
   ].map(q => `<button type="button">${esc(q)}</button>`).join('');
 }
 
@@ -495,7 +496,7 @@ $('#model').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b || busy) return;
   model = b.dataset.m; document.querySelectorAll('#model button').forEach(x => x.classList.toggle('on', x === b));
 });
-$('#chips').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { $('#q').value = b.textContent; submit(); } });
+$('#chips').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { $('#q').value = b.textContent; submit({ tapped: true }); } });
 
 // The answer: plain text with **bold**, bullet lines, and [C1] / [N1, C3] citations turned into chips.
 function renderAnswer(text, n) {
@@ -528,7 +529,7 @@ $('#log').addEventListener('click', e => {
 // A quick answer ("what's new today", latest talks): made by code from the morning's files, no model.
 const renderQuick = (q, heard) => `<p>${esc(q.say)}</p><ul class="quick-l">${q.lines.map(l => `<li>${esc(l)}</li>`).join('')}</ul>
   <div class="sources">${q.links.map(l => `<div class="src"><span class="cite">↗</span><div>${ext(l.url, esc(l.label))}</div></div>`).join('')}</div>
-  <div class="meta">Quick answer · code from ${esc(q.source)} · ${q.ms} ms${heard ? ` · asked by voice, Whisper ${(heard.sttMs / 1000).toFixed(1)} s on this laptop` : ''}</div>`;
+  <div class="meta">Quick answer · code from ${esc(q.source)} · ${q.ms} ms${heard?.sttMs != null ? ` · asked by voice, Whisper ${(heard.sttMs / 1000).toFixed(1)} s on this laptop` : heard ? ' · spoken answer' : ''}</div>`;
 // A question asked by voice gets its answer read out, with the browser's own voices. Each job on the AI team has its own
 // voice (first name that exists wins, then pitch and rate keep them apart). Answers built from the notes use local
 // voices only; the public-data job (latest talks) may use the browser's online voices, which sound better.
@@ -540,7 +541,10 @@ const TEAM = {
 };
 const agentTag = who => `<div class="meta" style="margin:0 0 6px;font-weight:600">🎙 ${esc(TEAM[who]?.name ?? '')}</div>`;
 // With --voices elevenlabs the server returns each job's ElevenLabs voice; if that fails, the browser voice below speaks.
-let eleven = fetch('/api/voices').then(r => r.json()).then(j => j.elevenlabs).catch(() => false), playing = null, said = 0;
+const voices = fetch('/api/voices').then(r => r.json()).catch(() => ({}));
+let eleven = voices.then(j => !!j.elevenlabs), playing = null, said = 0;
+// The mic shows only when the server runs Whisper (--stt whisper).
+voices.then(j => { if (j.stt) { $('#mic').hidden = false; $('#q').placeholder = 'Ask, or press 🎤 and speak…'; } });
 // Demo voices: the spoken answers (built from the notes too) are sent to ElevenLabs, so the header must not say "nothing leaves".
 eleven.then(on => { if (on) $('#privacy').textContent = 'demo voices ON: spoken answers are sent to ElevenLabs'; });
 async function speak(text, who = 'notes') {
@@ -584,10 +588,13 @@ const RELAX_LINE = "You've worked hard today, Ms Lee. Take a breath. Here's some
 // While a spoken question is being answered, from the moment the mic stops: if nothing was said after 1.5 s, the host
 // talks over quiet music: greeting, weather, the newest AI talk (/api/fillers), one line
 // after another. stop() ends it when the answer arrives; talked says whether the host said anything.
-let host = null;
+let host = null, hostedOnce = false;
 function startHost() {
   const h = { on: true, talked: false, ready: 'Your answer is ready.' };
+  // The greeting, weather and news are said once per page load; later questions just wait quietly.
+  if (hostedOnce) { h.stop = () => {}; return h; }
   h.timer = setTimeout(async () => {
+    hostedOnce = true;
     h.talked = true; startMusic('wait');
     const f = await fetch('/api/fillers').then(r => r.json()).catch(() => ({ lines: ['Looking through your notes, this takes a while.'] }));
     if (f.ready) h.ready = f.ready;

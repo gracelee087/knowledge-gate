@@ -4,7 +4,7 @@
 import { quick } from './quick.ts';
 
 const SKY: [number, string][] = [[0, 'clear'], [3, 'partly cloudy'], [48, 'foggy'], [67, 'rainy'], [77, 'snowy'], [82, 'showery'], [99, 'stormy']];
-let cache: { at: number; city: string; weather: string | null; news: string[] } | null = null;
+let cache: { at: number; city: string | null; weather: string | null; news: string[] } | null = null;
 export const READY = 'Your answer is ready. Starting your notes briefing!';
 
 async function weather(city: string) {
@@ -35,9 +35,9 @@ const greeting = () => {
     : "Good work today, Ms Lee. Let's look back at today's notes.";
 };
 
-export async function fillers(city: string) {
+export async function fillers(city: string | null) {
   if (!cache || cache.city !== city || Date.now() - cache.at >= 30 * 60e3) {
-    const [w, tech] = await Promise.all([weather(city).catch(() => null), headlines(4)]);
+    const [w, tech] = await Promise.all([city ? weather(city).catch(() => null) : null, headlines(4)]);
     cache = { at: Date.now(), city, weather: w, news: tech };
   }
   // Greeting, then "today's news" in short lines: the weather, then the newest AI talk.
@@ -48,6 +48,3 @@ export async function fillers(city: string) {
   if (talk) lines.push(`AI talks: the newest is "${talk}".`);
   return lines;
 }
-
-// The city for the weather: --city on the page server, else none.
-export const homeCity = (override: string | null) => override ?? '';

@@ -1,6 +1,6 @@
 // Ask: a question about the lectures and my notes, answered on the laptop by a local model.
 //   1. the question, every lecture claim and every note are embedded with local embeddinggemma
-//      (claim vectors are cached in data/ask_vectors.json; data/ stays on the laptop)
+//      (claim vectors are cached in data/ask_vectors_titled.json; data/ stays on the laptop)
 //   2. the closest claims (top K) and the closest notes (cosine >= NEAR, at most 2) plus today's 00 Morning.md
 //      go to the local model, which may answer only from them and must cite them as [C1], [N1], [M]
 //   3. code keeps only citations that exist; each cited claim comes back with its verified quote and time link
@@ -38,12 +38,13 @@ async function search(question: string, K: number) {
     }));
   });
 
-  // Claim vectors: embed only the claims not cached yet.
-  const CACHE = new URL('data/ask_vectors.json', root);
+  // Claim vectors: embed only the claims not cached yet. Each claim is embedded with its talk's title, so a question
+  // that names the talk ("how a hedge fund measures AI ROI") finds it; claim text alone missed it (2026-10-24).
+  const CACHE = new URL('data/ask_vectors_titled.json', root);
   const cache: Record<string, number[]> = existsSync(CACHE) ? JSON.parse(readFileSync(CACHE, 'utf8')) : {};
   const missing = claims.filter(c => !cache[c.key]);
   if (missing.length) {
-    const v = await embed(EMBED, missing.map(c => c.claim));
+    const v = await embed(EMBED, missing.map(c => `${c.title}. ${c.claim}`));
     missing.forEach((c, i) => { cache[c.key] = v[i]; });
     writeFileSync(CACHE, JSON.stringify(cache));
   }
@@ -61,7 +62,7 @@ async function search(question: string, K: number) {
   fresh.forEach((n, i) => noteVec.set(n.text, fv[i]));
   const nv = notes.map(n => noteVec.get(n.text)!);
   // A note named in the question comes first (as in the morning merge, words before meaning), then the closest by meaning.
-  const norm = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N} ]+/gu, ' ').replace(/\s+/g, ' ').trim();
+  const norm = (s: string) => s.toLowerCase().replace(/['’]s\b/g, '').replace(/[^\p{L}\p{N} ]+/gu, ' ').replace(/\s+/g, ' ').trim(); // "agent's harness" names Agent Harness
   const named = notes.filter(n => ` ${norm(question)} `.includes(` ${norm(n.name)} `));
   // Claims about a concept named in the question come first, then the closest by meaning.
   const byName = claims.filter(c => c.concepts.some(k => k.length >= 4 && ` ${norm(question)} `.includes(` ${norm(k)} `)));
@@ -119,12 +120,40 @@ Use only the sources given: lecture claims [C1]..., the person's notes [N1]..., 
 // A spoken question about the notes, answered by code from the search alone (no model), so it comes back in seconds:
 // the start of the closest note in my own words, then up to 2 close lecture claims with their verified quotes.
 // Nothing close enough: the NOT_FOUND reply, and the question is kept in data/open_questions.json.
-export const CLAIM_NEAR = 0.55;
+// 0.45, as for notes: on 2026-10-24, with title + claim vectors, 11 off-topic questions scored at most 0.406 and the
+// on-topic ones 0.48 to 0.66.
+export const CLAIM_NEAR = 0.45;
+
+// "Read my Agent Harness note" / "What is new in my Agent Harness note?": the named note, read from the file (no model):
+// my own words, my open questions, and the newest point the morning merge added, with its talk and second.
+const READ_NOTE = /\bread\b|what('?s| is) in\b|\bnew\b|latest|newest|chang|update|differ|added|original|before|after|show me/i;
+function readNote(note: { name: string; text: string }) {
+  const [head, ...parts] = note.text.split('\n## ');
+  const mine = head.split('\n').filter(l => l.trim() && !l.startsWith('#')).join(' ');
+  const open = (parts.find(p => p.startsWith('Open questions')) ?? '').split('\n').filter(l => l.startsWith('- ')).map(l => l.slice(2));
+  const blocks = (parts.find(p => p.startsWith('From lectures')) ?? '').split('\n### merged ').slice(1);
+  const points = blocks.flatMap(b => b.split('\n').filter(l => l.startsWith('- ')));
+  const last = blocks.at(-1), line = last?.split('\n').find(l => l.startsWith('- '));
+  const lines = [`In your note "${note.name}", you wrote: ${mine} [N1]`];
+  if (open.length) lines.push(`Your open questions: ${open.join(' ')}`);
+  const sources: Source[] = [{ id: 'N1', kind: 'note', name: note.name }];
+  if (last && line) {
+    const date = last.split(' ')[0], title = last.match(/\[(.+?)\]\(/)?.[1] ?? '';
+    const [, at = '', link = ''] = line.match(/\[(\d+:\d+(?::\d+)?)\]\((.+?)\)\s*$/) ?? [];
+    const claim = line.slice(2).split(' — "')[0].replace(/\s*\[\d+:\d+(?::\d+)?\]\(.+?\)\s*$/, '');
+    const quote = line.match(/ — "(.+)" \[/)?.[1] ?? null;
+    lines.push(`The talks have added ${points.length} point${points.length === 1 ? '' : 's'} below your words. The newest, merged on ${date}, from "${title}": ${claim} [C1]`);
+    sources.push({ id: 'C1', kind: 'claim', title, claim, quote, at, link });
+  }
+  return { text: lines.join('\n\n'), sources };
+}
+
 export async function recall(question: string): Promise<Answer> {
   const t0 = Date.now();
   const { claims, top, near } = await search(question, 8);
   const n = near[0]?.n, cs = top.filter(x => x.s >= CLAIM_NEAR).slice(0, 2);
   const done = (text: string, sources: Source[]) => ({ text, sources, fake: [], claims: claims.length, notes: n ? 1 : 0, model: 'search only, no model', seconds: Math.round((Date.now() - t0) / 1000) });
+  if (near[0]?.s === 1 && READ_NOTE.test(question)) { const r = readNote(near[0].n); return done(r.text, r.sources); }
   if (!n && !cs.length) {
     const OPEN = new URL('data/open_questions.json', root);
     const open: { question: string; at: string }[] = existsSync(OPEN) ? JSON.parse(readFileSync(OPEN, 'utf8')) : [];

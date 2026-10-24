@@ -55,7 +55,7 @@ function latest() {
 }
 
 const notesDir = new URL('notes/', root);
-const norm = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N} ]+/gu, ' ').replace(/\s+/g, ' ').trim();
+const norm = (s: string) => s.toLowerCase().replace(/['’]s\b/g, '').replace(/[^\p{L}\p{N} ]+/gu, ' ').replace(/\s+/g, ' ').trim(); // as in src/lib/ask.ts
 function namesNote(question: string) {
   const names = ['', 'sections/'].flatMap(d => (existsSync(new URL(d, notesDir)) ? readdirSync(new URL(d, notesDir)).filter(f => f.endsWith('.md')) : []))
     .map(f => f.replace(/\.md$/, '')).filter(n => !['00 Morning', 'README', 'Hackathons', 'Travel', 'Me'].includes(n));

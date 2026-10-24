@@ -218,7 +218,7 @@ const proposed = proposals.length - before;
 
 // Questions asked on the page that the notes could not answer (data/open_questions.json, written by src/lib/ask.ts):
 // code lists this run's claims closest in meaning, no model judgment; each claim is shown once per question ("matched").
-const QNEAR = 0.55; // as CLAIM_NEAR in src/lib/ask.ts: a claim this close is read out as an answer there
+const QNEAR = 0.55; // stricter than CLAIM_NEAR in src/lib/ask.ts (0.45): flagging a claim as an answer to my question needs a closer match
 const OPEN = new URL('data/open_questions.json', root);
 const maybe: { q: string; c: Claim }[] = [];
 if (existsSync(OPEN) && claims.length) {
