@@ -6,11 +6,17 @@
 // Usage: npx tsx src/cli/sync.ts push|pull
 import '../lib/env.ts';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { db, closeDb } from '../lib/db.ts';
 
 const data = (p: string) => new URL(`../../data/${p}`, import.meta.url);
 const STATE = ['concepts.json', 'categories.json', 'videos.json', 'skipped.json'];
+
+// Papers (src/cli/sources.ts) are added to videos.json on the laptop only; a pull keeps the ones Atlas does not have.
+export function keepLocalPapers(atlas: any[], local: any[]) {
+  const ids = new Set(atlas.map(v => v.videoId));
+  return atlas.concat(local.filter(v => v.kind === 'paper' && !ids.has(v.videoId)));
+}
 
 export async function push() {
   const d = await db();
@@ -37,7 +43,8 @@ export async function pull() {
   }
   for (const f of STATE) {
     const s = await d.collection('state').findOne({ _id: f as any });
-    if (s) writeFileSync(data(f), s.json);
+    if (s) writeFileSync(data(f), f === 'videos.json' && existsSync(data(f))
+      ? JSON.stringify(keepLocalPapers(JSON.parse(s.json), JSON.parse(readFileSync(data(f), 'utf8'))), null, 1) : s.json);
   }
   writeFileSync(data('last_pull.json'), JSON.stringify({ at: new Date().toISOString(), cards: local.size + added })); // shown on the local page
   return `pulled cards (${added} new) and ${STATE.join(', ')}`;

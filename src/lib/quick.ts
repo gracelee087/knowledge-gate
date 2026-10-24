@@ -74,7 +74,7 @@ function hackathons() {
   };
   const pick = (r: typeof rows[0]) => `${r.name}, ${r.where}, ${r.dates}${r.prize && r.prize !== '?' ? `, prize ${r.prize}` : ''}${fit(r) ? `. Why it fits you: ${fit(r)}` : ''}`;
   return {
-    say: `${rows.length} upcoming hackathons; my top two for you. First, ${pick(top[0])}.${top[1] ? ` Second, ${pick(top[1])}.` : ''}`,
+    say: `${rows.length} upcoming hackathons. My top pick for you: ${pick(top[0])}.${top[1] ? ` Also good: ${top[1].name}.` : ''}`,
     lines: top.map(r => `${r.ai ? '⭐ ' : ''}${r.near ? '📍 ' : ''}${one(r)}${r.themes && r.themes !== '?' ? ` · ${r.themes}` : ''}`),
     links: top.map(r => ({ label: r.name, url: r.url })),
     source: `notes/Hackathons.md${p.interests.length || p.city ? ' + notes/Me.md' : ''}`,
@@ -125,7 +125,7 @@ function latest(papersOnly: boolean) {
   const top = cards.sort((a, b) => b.date.localeCompare(a.date) || b.fit - a.fit).slice(0, 3);
   const [first, ...rest] = top;
   return {
-    say: `The newest is the ${first.kind} "${first.title}", from ${first.date}: ${first.oneLine}${rest.length ? ` ${rest.length} more are on the screen.` : ''}`,
+    say: `${first.date !== today() ? `No new talks today. ` : ''}The newest is the ${first.kind} "${first.title}", from ${first.date}: ${first.oneLine}${rest.length ? ` ${rest.length} more are on the screen.` : ''}`,
     lines: top.map(c => `${c.date} · ${c.kind} · ${c.title} — ${c.oneLine}`),
     links: top.map(c => ({ label: c.title, url: c.url })),
     source: 'data/cards + data/videos.json' + (p.interests.length ? ' + notes/Me.md' : ''),
@@ -170,6 +170,8 @@ function today_() {
   const props = existsSync(new URL('.proposals.json', notesDir)) ? read('notes/.proposals.json').filter((p: any) => p.status === 'open') : [];
   const total = added.reduce((a, x) => a + x.n, 0), n = lectures ?? String(titles.length);
   const say = [
+    // No merge today: say so first, then what the last one did.
+    ...(day && day !== today() ? [`No new lectures today. The last update was on ${day}.`] : []),
     ...bells.map(b => `An answer to your open question: ${b}.`),
     total ? `This morning's merge, ${day}, added ${total} new point${total > 1 ? 's' : ''} to your notes from ${n} new lecture${n === '1' ? '' : 's'}: ${added.map(x => `${x.note} ${x.n}`).join(', ')}.${titles.length ? ` The lecture${titles.length > 1 ? 's' : ''}: ${titles.map(t => `"${t}"`).join(' and ')}.` : ''}`
       : `This morning's merge, ${day}, added nothing to your notes.`,

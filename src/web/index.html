@@ -246,7 +246,7 @@
   <nav id="nav"></nav>
   <div class="report" id="report"></div>
 <section class="chat" aria-label="Ask about the talks and your notes">
-  <div class="chat-h"><div><b>Ask your notes</b><small>Notes Assistant · Gemma 4 in Ollama on this laptop · answers from the talks and your notes · nothing leaves the laptop</small></div></div>
+  <div class="chat-h"><div><b>Ask your notes</b><small>Notes Assistant · Gemma 4 in Ollama on this laptop · answers from the talks and your notes · <span id="privacy">nothing leaves the laptop</span></small></div></div>
   <div id="log">
     <div class="msg bot hello">
       <p>Answers use only the lecture claims and your notes on this laptop, and every point cites its source.</p>
@@ -543,6 +543,8 @@ const TEAM = {
 const agentTag = who => `<div class="meta" style="margin:0 0 6px;font-weight:600">🎙 ${esc(TEAM[who]?.name ?? '')}</div>`;
 // With --voices elevenlabs the server returns each job's ElevenLabs voice; if that fails, the browser voice below speaks.
 let eleven = fetch('/api/voices').then(r => r.json()).then(j => j.elevenlabs).catch(() => false), playing = null, said = 0;
+// Demo voices: the spoken answers (built from the notes too) are sent to ElevenLabs, so the header must not say "nothing leaves".
+eleven.then(on => { if (on) $('#privacy').textContent = 'demo voices ON: spoken answers are sent to ElevenLabs'; });
 async function speak(text, who = 'notes') {
   if (playing) { playing.pause(); playing = null; }
   const me = ++said; // a later speak wins: a waiting line whose audio arrives after the answer is dropped
@@ -626,7 +628,7 @@ async function submit(heard) {
   }
   // "I'm tired": no model, the host says one line and plays the relaxing music until the next question.
   if (heard && TIRED.test(q)) {
-    h?.stop();
+    host?.stop(); host = null;
     $(`#a${n}`).innerHTML = agentTag('host') + `<p>${esc(RELAX_LINE)}</p>`;
     clearInterval(tick); busy = false; $('#send').disabled = false; $('#mic').disabled = false;
     await speak(RELAX_LINE, 'host'); await spoken(); startMusic('relax');

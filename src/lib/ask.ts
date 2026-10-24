@@ -49,7 +49,9 @@ async function search(question: string, K: number) {
   }
 
   const notesDir = new URL('notes/', root);
-  const notes = existsSync(notesDir) ? readdirSync(notesDir).filter(f => f.endsWith('.md') && !f.startsWith('00 ') && f !== 'README.md')
+  // My own notes only: the generated pages (Hackathons, Travel, Me from the CV) are not "what I wrote"; their data is
+  // answered by quick.ts. notes/sections/ holds lecture claims, which the claim search already covers.
+  const notes = existsSync(notesDir) ? readdirSync(notesDir).filter(f => f.endsWith('.md') && !f.startsWith('00 ') && !['README.md', 'Hackathons.md', 'Travel.md', 'Me.md'].includes(f))
     .map(f => ({ name: f.replace(/\.md$/, ''), text: readFileSync(new URL(f, notesDir), 'utf8') })) : [];
   const morning = existsSync(new URL('00 Morning.md', notesDir)) ? readFileSync(new URL('00 Morning.md', notesDir), 'utf8') : '';
 

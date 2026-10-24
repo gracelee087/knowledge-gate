@@ -26,6 +26,8 @@ const root = new URL('../../', import.meta.url);
 const notesDir = new URL('notes/', root);
 const arg = (name: string) => (process.argv.indexOf(name) > 0 ? process.argv[process.argv.indexOf(name) + 1] : null);
 const model = arg('--model') ?? 'ollama/gemma4:12b'; // 12b over e4b: E25
+// The notes go into the prompt, so only a local model may read them.
+if (!model.startsWith('ollama/')) { console.error(`--model ${model}: the merge runs on a local model only (ollama/...); personal notes never leave the laptop`); process.exit(1); }
 const git = (...a: string[]) => execFileSync('git', ['-C', fileURLToPath(notesDir), ...a], { encoding: 'utf8' });
 const commit = (msg: string) => { git('add', '-A'); if (git('status', '--porcelain').trim()) git('commit', '-q', '-m', msg); };
 
@@ -76,7 +78,8 @@ for (const c of todo) {
 
 // Each claim goes to at most one note. A [[link]] alone does not count: a note links related topics it is
 // not about (E25 run 1). Words first; then meaning, so "Context Poisoning" can find a Context Engineering note.
-const notes = readdirSync(notesDir).filter(f => f.endsWith('.md') && !f.startsWith('00 ') && f !== 'README.md')
+const GENERATED = ['README.md', 'Hackathons.md', 'Travel.md', 'Me.md']; // written by other scripts, not by the person
+const notes = readdirSync(notesDir).filter(f => f.endsWith('.md') && !f.startsWith('00 ') && !GENERATED.includes(f))
   .map(f => ({ file: f, name: f.replace(/\.md$/, ''), text: readFileSync(new URL(f, notesDir), 'utf8') }));
 const own = (note: typeof notes[number]) => note.text.split('\n## From lectures')[0].replace(/\[\[[^\]]*\]\]/g, ' '); // what the person wrote, minus links
 const noteFor = (c: Claim) =>
@@ -118,6 +121,7 @@ commit(`before merge ${new Date().toISOString()}`);
 const plan: { note: typeof notes[number]; add: Claim[]; known: { c: Claim; evidence: string }[]; update: { c: Claim; old: string; revised: string }[] }[] = [];
 const covered = new Set<Claim>();
 const answers = new Map<Claim, string>(); // claim -> the open question it answers
+const held: Claim[] = []; // no verdict (broken or cut-off JSON): not written, the lecture stays unmerged and the next run retries
 let fixed = 0;
 for (const note of notes) {
   const mine = claims.filter(c => home.get(c) === note);
@@ -130,11 +134,12 @@ for (const note of notes) {
     const batch = ask.slice(s, s + 12);
     const r = await chatRetry(model, SYSTEM, `Note "${note.name}":\n${note.text}\n\nClaims:\n${batch.map((c, i) => `${i}. ${c.claim}`).join('\n')}`, z.toJSONSchema(Judged));
     let j: ReturnType<typeof Judged.safeParse>;
-    try { j = Judged.safeParse(JSON.parse(r.text)); } catch { j = Judged.safeParse(null); } // a cut-off answer: every claim counts as new
+    try { j = Judged.safeParse(JSON.parse(r.text)); } catch { j = Judged.safeParse(null); } // a cut-off answer: every claim is held
     batch.forEach((c, i) => {
       const v = j.success ? j.data.judgments.find(x => x.claim === i) : undefined;
+      if (!v) { held.push(c); return; }
       // "known" stands only if the copied sentence is really in the note.
-      if (v?.verdict === 'unrelated') return; // stays out of the note, listed under New topics
+      if (v.verdict === 'unrelated') return; // stays out of the note, listed under New topics
       covered.add(c);
       if (v?.verdict === 'known' && v.evidence.trim() && norm(note.text).includes(norm(v.evidence))) known.push({ c, evidence: v.evidence.trim() });
       // An edit is only proposed for a sentence the person wrote, copied exactly; the page applies it after approval.
@@ -151,7 +156,7 @@ for (const note of notes) {
 // Section notes: what no note of the person's took goes to the note of its lecture's section (the map's categories).
 // The merge alone writes these notes, only appending; a point the note already has ("known", sentence checked) is skipped.
 const catOf = new Map<string, string>(read('data/categories.json').assignments.map((a: any) => [a.videoId, a.category]));
-const sections = [...groupBy(claims.filter(c => !covered.has(c) && catOf.has(c.videoId)), c => catOf.get(c.videoId)!)].map(([cat, cs]) => {
+const sections = [...groupBy(claims.filter(c => !covered.has(c) && !held.includes(c) && catOf.has(c.videoId)), c => catOf.get(c.videoId)!)].map(([cat, cs]) => {
   const f = `sections/${file(cat)}.md`, u = new URL(f, notesDir);
   const text = existsSync(u) ? readFileSync(u, 'utf8') : `# ${cat}\n\nPoints from the lectures in this section, added by the morning merge. Only appended to; a point this note already has is skipped.\n`;
   return { note: { file: f, name: cat, text }, cs };
@@ -168,6 +173,7 @@ for (const { note, cs } of sections) {
     try { j = Judged.safeParse(JSON.parse(r.text)); } catch { j = Judged.safeParse(null); }
     batch.forEach((c, i) => {
       const v = j.success ? j.data.judgments.find(x => x.claim === i) : undefined;
+      if (!v) { held.push(c); return; }
       covered.add(c);
       if (v?.verdict === 'known' && v.evidence.trim() && norm(note.text).includes(norm(v.evidence))) known.push({ c, evidence: v.evidence.trim() });
       else { if (v?.verdict === 'known') fixed++; add.push(c); } // the section is the claim's home: "unrelated" and "update" are added too
@@ -191,7 +197,7 @@ for (const p of plan.filter(p => p.add.length)) {
     ...(p.note.text.includes('\n## From lectures') ? [] : ['', '## From lectures', '']),
     ...[...byLecture.values()].flatMap(cs => [
       `### merged ${day} · [${cs[0].title}](${cs[0].url})`,
-      ...cs.map(c => `- ${answers.has(c) ? `🔔 answers "${answers.get(c)}": ` : ''}${c.claim}${c.quote ? ` — "${c.quote}"` : ''} ${cite(c)}`),
+      ...cs.map(c => `- ${answers.has(c) ? `🔔 answers "${answers.get(c)}": ` : ''}${c.claim}${c.quote ? ` — "${c.quote}"` : ' (quote not verified)'} ${cite(c)}`),
       '',
     ]),
   ].join('\n');
@@ -201,22 +207,47 @@ for (const p of plan.filter(p => p.add.length)) {
 // Edit proposals wait in notes/.proposals.json; nothing in a note changes until the person approves one on the page.
 const PROPOSALS = new URL('.proposals.json', notesDir);
 const proposals: any[] = existsSync(PROPOSALS) ? JSON.parse(readFileSync(PROPOSALS, 'utf8')) : [];
-for (const p of plan) for (const u of p.update) proposals.push({
+const before = proposals.length;
+// A lecture with held claims is merged again next run; an edit already proposed is not proposed twice.
+for (const p of plan) for (const u of p.update.filter(u => !proposals.some(x => x.note === p.note.name && x.old === u.old && x.claim === u.c.claim))) proposals.push({
   id: `${day}-${proposals.length + 1}`, date: day, note: p.note.name, old: u.old, revised: u.revised,
   claim: u.c.claim, quote: u.c.quote, at: u.c.at, title: u.c.title, link: cite(u.c).replace(/^\[[^\]]*\]\((.*)\)$/, '$1'), status: 'open',
 });
 writeFileSync(PROPOSALS, JSON.stringify(proposals, null, 1));
-const proposed = plan.reduce((a, p) => a + p.update.length, 0);
+const proposed = proposals.length - before;
 
-const rest = claims.filter(c => !covered.has(c) && c.concepts.length);
+// Questions asked on the page that the notes could not answer (data/open_questions.json, written by src/lib/ask.ts):
+// code lists this run's claims closest in meaning, no model judgment; each claim is shown once per question ("matched").
+const QNEAR = 0.55; // as CLAIM_NEAR in src/lib/ask.ts: a claim this close is read out as an answer there
+const OPEN = new URL('data/open_questions.json', root);
+const maybe: { q: string; c: Claim }[] = [];
+if (existsSync(OPEN) && claims.length) {
+  const open: { question: string; at: string; matched?: { claim: string; url: string; day: string }[] }[] = JSON.parse(readFileSync(OPEN, 'utf8'));
+  if (open.length) {
+    const qv = await embed(EMBED, open.map(o => o.question)), cv = await embed(EMBED, claims.map(c => c.claim));
+    open.forEach((o, k) => {
+      const top = claims.map((c, i) => ({ c, s: cosine(qv[k], cv[i]) })).filter(x => x.s >= QNEAR && !o.matched?.some(m => m.claim === x.c.claim && m.url === x.c.url))
+        .sort((a, b) => b.s - a.s).slice(0, 2);
+      for (const { c } of top) { maybe.push({ q: o.question, c }); (o.matched ??= []).push({ claim: c.claim, url: c.url, day }); }
+    });
+    // ask.ts may have added a question while the model was judging: keep those, add only the matches.
+    const now: typeof open = JSON.parse(readFileSync(OPEN, 'utf8'));
+    writeFileSync(OPEN, JSON.stringify(now.map(o => ({ ...o, matched: open.find(x => x.question === o.question && x.at === o.at)?.matched ?? o.matched })), null, 1));
+  }
+}
+
+const rest = claims.filter(c => !covered.has(c) && !held.includes(c) && c.concepts.length);
 const topics = groupBy(rest, c => c.concepts[0]);
 const map = (k: string) => `[${k}](../map/concepts/${encodeURI(file(k))}.md)`;
 writeFileSync(new URL('00 Morning.md', notesDir), [
   `# Morning ${day}`, '',
   `Generated by the morning merge (local model ${model}); rewritten every morning. Your notes are only appended to.`, '',
-  `${todo.length} new lecture${todo.length > 1 ? 's' : ''}. In your notes: ${plan.reduce((a, p) => a + p.add.length, 0)} new points added, ${plan.reduce((a, p) => a + p.known.length, 0)} skipped because you already have them, ${proposed} edit${proposed === 1 ? '' : 's'} proposed (apply them on the page).`, '',
+  `${todo.length} new lecture${todo.length > 1 ? 's' : ''}. In your notes: ${plan.reduce((a, p) => a + p.add.length, 0)} new points added, ${plan.reduce((a, p) => a + p.known.length, 0)} skipped because you already have them, ${proposed} edit${proposed === 1 ? '' : 's'} proposed (apply them on the page)${held.length ? `, ${held.length} held (no verdict from the model)` : ''}.`, '',
   '## 🔔 Answers to your open questions', '',
-  ...[...answers].map(([c, q]) => `- "${q}" — ${c.claim} (${c.title})`), ...(answers.size ? [] : ['- none today']), '',
+  ...[...answers].map(([c, q]) => `- "${q}" — ${c.claim} (${c.title})`),
+  ...maybe.map(({ q, c }) => `- possibly answers your question "${q}": ${c.claim} (${c.title}) ${cite(c)}`),
+  ...(answers.size || maybe.length ? [] : ['- none today']), '',
+  ...(held.length ? ['## Held: the model gave no verdict, retried next run', '', ...held.map(c => `- ${c.claim} (${c.title})`), ''] : []),
   '## Added to your notes', '',
   ...plan.filter(p => p.add.length).map(p => `- [[${p.note.name}]]: ${p.add.length} new`), '',
   '## Skipped: you already have these', '',
@@ -225,7 +256,8 @@ writeFileSync(new URL('00 Morning.md', notesDir), [
   ...[...topics].sort((a, b) => b[1].length - a[1].length).map(([k, cs]) => `- ${map(k)} — ${cs.length} point${cs.length > 1 ? 's' : ''}, e.g. ${cs[0].claim}`), '',
 ].join('\n'));
 
-writeFileSync(STATE, JSON.stringify([...merged, ...todo.map(c => c.videoId)]));
+// A lecture with a held claim is not marked merged; next run its written claims are found word for word in the note.
+writeFileSync(STATE, JSON.stringify([...merged, ...todo.map(c => c.videoId).filter(id => !held.some(c => c.videoId === id))]));
 const problems: string[] = [];
 commit(`merge ${day}: ${todo.length} lectures`);
 // Check with git: the merge may add lines to your notes but never remove or change one.
@@ -233,5 +265,5 @@ for (const line of git('diff', '--numstat', 'HEAD~1', 'HEAD').trim().split('\n')
   const [, del, f] = line.split('\t');
   if (f !== '00 Morning.md' && f !== '.merged.json' && f !== '.proposals.json' && Number(del) > 0) problems.push(`${f}: ${del} lines removed or changed`);
 }
-console.log(`\n${todo.length} lectures, ${claims.length} claims; ${byMeaning} sent to a note by meaning, ${claims.filter(c => home.get(c) && !covered.has(c)).length} judged unrelated; ${covered.size} touch your notes: ${plan.reduce((a, p) => a + p.add.length, 0)} added, ${plan.reduce((a, p) => a + p.known.length, 0)} known, ${proposed} edits proposed (${fixed} "known" answers without a real sentence from the note were counted as new); ${topics.size} new topics`);
+console.log(`\n${todo.length} lectures, ${claims.length} claims; ${byMeaning} sent to a note by meaning, ${claims.filter(c => home.get(c) && !covered.has(c) && !held.includes(c)).length} judged unrelated, ${held.length} held (no verdict); ${covered.size} touch your notes: ${plan.reduce((a, p) => a + p.add.length, 0)} added, ${plan.reduce((a, p) => a + p.known.length, 0)} known, ${proposed} edits proposed (${fixed} "known" answers without a real sentence from the note were counted as new); ${topics.size} new topics`);
 console.log(problems.length ? 'CHECK FAILED:\n- ' + problems.join('\n- ') : 'check passed: existing note text unchanged');

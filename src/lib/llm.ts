@@ -77,11 +77,17 @@ async function ollamaChat(id: string, system: string, user: string, jsonSchema?:
     // Ollama's default context is small; a 37-minute transcript needs ~10k tokens.
     options: { temperature: 0.2, num_ctx: 24576 },
   });
+  // A hard limit for the whole call (OLLAMA_TIMEOUT_MS, default 20 min: the slowest merge call measured was ~7 min),
+  // so a stuck model ends in an error instead of a wait with no end.
+  const limit = Number(process.env.OLLAMA_TIMEOUT_MS ?? 20 * 60_000);
+  let req!: http.ClientRequest;
+  const timer = setTimeout(() => req.destroy(new Error(`Ollama: no answer within ${Math.round(limit / 1000)} s`)), limit);
   const res = await new Promise<http.IncomingMessage>((resolve, reject) => {
-    const req = http.request('http://127.0.0.1:11434/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' } }, resolve);
+    req = http.request('http://127.0.0.1:11434/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' } }, resolve);
     req.on('error', reject);
     req.end(body);
-  });
+  }).catch(e => { clearTimeout(timer); throw e; });
+  res.on('close', () => clearTimeout(timer));
   if (res.statusCode !== 200) {
     let err = '';
     for await (const chunk of res) err += chunk;

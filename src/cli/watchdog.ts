@@ -1,8 +1,8 @@
 // Watchdog, run every few hours: catches what the webhook missed.
 //   1. renews the hub subscription (leases run out)
 //   2. reads every channel's feed (free, no key): uploads not in data/videos.json are added (Shorts are skipped)
-//   3. starts processLecture for every new-era lecture (one with a "published" date) that has no card yet and was
-//      not skipped (narrated in Korean). A lecture whose run is still going is not started twice (Temporal ids).
+//   3. starts processLecture for every new-era lecture (one with a "published" date) that is not on the map yet and
+//      was not skipped (narrated in Korean). A lecture whose run is still going is not started twice (Temporal ids).
 //      This also retries a lecture whose transcript was not ready the first time; after 3 restarts it gives up.
 //   4. checks that the webhook answers
 // Usage: npx tsx src/cli/watchdog.ts [--no-subscribe]
@@ -29,7 +29,11 @@ for (const c of CHANNELS) {
 // restarts, so it does not use SerpApi searches every 6 hours forever. The count is kept in <id>.tries.
 const MAX_TRIES = 3;
 const cardFile = (id: string, ext: string) => new URL(`../../data/cards/${id}.${ext}`, import.meta.url);
-for (const v of videos().filter(v => v.published && !card(v.videoId, 'json') && !card(v.videoId, 'skipped.txt'))) {
+// A lecture is done when addToMap gave it a category (src/agent/incremental.ts writes data/categories.json). One with
+// a card but no category is started again: the transcript is cached and cards.ts skips the card, so only addToMap runs.
+// (incremental.ts then rebuilds the map and pushes everything, so a failed map.ts or push is redone by the next lecture.)
+const mapped = new Set(JSON.parse(readFileSync(new URL('../../data/categories.json', import.meta.url), 'utf8')).assignments.map((a: any) => a.videoId));
+for (const v of videos().filter(v => v.published && v.kind !== 'paper' && !mapped.has(v.videoId) && !card(v.videoId, 'skipped.txt'))) {
   const tries = card(v.videoId, 'tries') ? Number(readFileSync(cardFile(v.videoId, 'tries'), 'utf8')) : 0;
   if (tries >= MAX_TRIES) {
     writeFileSync(cardFile(v.videoId, 'skipped.txt'), `gave up after ${tries} tries`);
