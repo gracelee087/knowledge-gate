@@ -9,5 +9,5 @@ map/
 notes.example/
 measure/
 
-# dev.to drafts stay local until the post is published
+# local writing drafts
 docs/DEV_POST*.md
