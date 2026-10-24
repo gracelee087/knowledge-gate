@@ -7,7 +7,6 @@ what is new to my own notes, and my notes never leave my laptop.**
 
 *The morning page at `http://127.0.0.1:4321` (Oct 22). Speaker names are blurred in this screenshot.*
 
-
 ## The problem
 
 A few YouTube channels I follow (AI Engineer conference talks and two others, see `src/lib/channel.ts`) upload
