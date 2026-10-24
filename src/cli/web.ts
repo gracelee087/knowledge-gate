@@ -90,7 +90,7 @@ createServer(async (req, res) => {
   try {
     if (req.method === 'GET' && req.url === '/') return send(res, 200, readFileSync(new URL('src/web/index.html', root), 'utf8'), 'text/html');
     if (req.method === 'GET' && req.url === '/api/notes') {
-      const notes = existsSync(notesDir) ? readdirSync(notesDir).filter(f => f.endsWith('.md') && !f.startsWith('00 ') && f !== 'README.md')
+      const notes = existsSync(notesDir) ? readdirSync(notesDir).filter(f => f.endsWith('.md') && !f.startsWith('00 ') && !['README.md', 'Hackathons.md', 'Travel.md', 'Me.md'].includes(f))
         .map(f => ({ name: f.replace(/\.md$/, ''), text: readFileSync(new URL(f, notesDir), 'utf8') })) : [];
       const cards = readdirSync(new URL('data/cards/', root)).filter(f => f.endsWith('.json')).length;
       // The map's categories, so the page can file each appended note line under its lecture's category.
@@ -118,7 +118,7 @@ createServer(async (req, res) => {
       const { question, model, voice } = JSON.parse(body);
       if (typeof question !== 'string' || !question.trim() || question.length > 500) return send(res, 400, JSON.stringify({ error: 'question: 1 to 500 characters' }));
       if (!MODELS.includes(model)) return send(res, 400, JSON.stringify({ error: `model: one of ${MODELS.join(', ')}` }));
-      // Spoken questions only: "what's new today", hackathons, flights and the latest material are answered by code
+      // Spoken questions only: "what's new today" and the latest talks are answered by code
       // from the files, at once (src/lib/quick.ts). Typed questions always go to the Notes Assistant, as before.
       const q = voice === true && !MORE.test(question) ? quick(question) : null;
       if (q) return send(res, 200, JSON.stringify({ quick: q }));
@@ -191,7 +191,7 @@ createServer(async (req, res) => {
   if (VOICES !== 'elevenlabs') return;
   // Make the voice for the waiting lines and the usual spoken questions now, so they play at once when asked.
   const said: [string, string][] = [...await fillers(homeCity(arg('--city'))), READY].map(l => [l, 'host']);
-  for (const q of ['What is new today?', 'Any hackathons worth going to?', 'Flights to Korea?', 'Latest material?']) {
+  for (const q of ['What is new today?', 'Latest material?']) {
     const a = quick(q);
     if (a) said.push([`${TEAM_VOICES[a.topic].name} here. ${a.say}`, a.topic]);
   }

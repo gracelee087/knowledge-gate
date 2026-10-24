@@ -1,12 +1,8 @@
 // What the host says while a slow answer is on its way: a greeting by the Berlin hour, the weather where I am, with a
-// clothing tip, a few headlines, then a hackathon closing soon and today's flight price. Weather from Open-Meteo (no key;
-// only the city name is sent); tech headlines copied verbatim from the Hacker News API; the hackathon and flight
-// lines are copied from notes/Hackathons.md and notes/Travel.md. Fetched data is cached for 30 minutes.
-import { existsSync, readFileSync } from 'node:fs';
+// clothing tip, then the newest AI talk. Weather from Open-Meteo (no key; only the city name is sent); tech headlines
+// are fetched from the Hacker News API. Fetched data is cached for 30 minutes.
 import { quick } from './quick.ts';
 
-const root = new URL('../../', import.meta.url);
-const note = (f: string) => (existsSync(new URL(`notes/${f}`, root)) ? readFileSync(new URL(`notes/${f}`, root), 'utf8') : '');
 const SKY: [number, string][] = [[0, 'clear'], [3, 'partly cloudy'], [48, 'foggy'], [67, 'rainy'], [77, 'snowy'], [82, 'showery'], [99, 'stormy']];
 let cache: { at: number; city: string; weather: string | null; news: string[] } | null = null;
 export const READY = 'Your answer is ready. Starting your notes briefing!';
@@ -44,19 +40,14 @@ export async function fillers(city: string) {
     const [w, tech] = await Promise.all([weather(city).catch(() => null), headlines(4)]);
     cache = { at: Date.now(), city, weather: w, news: tech };
   }
-  // Greeting, then "today's news" in short lines: the weather, then the three things I follow (talks, hackathons, travel).
+  // Greeting, then "today's news" in short lines: the weather, then the newest AI talk.
   const lines = [greeting(), "While we wait, here's today's news!"];
   if (cache.weather) lines.push(cache.weather);
   // The newest AI talk, from the cards on this laptop (the same answer as "latest material"), without the speaker part.
   const talk = quick('latest material')?.links[0]?.label?.split(/ [-—] /)[0];
   if (talk) lines.push(`AI talks: the newest is "${talk}".`);
-  // The top hackathon pick (the same ranking as the quick answer) and the cheapest flight of the first trip.
-  const hack = quick('hackathons')?.links[0]?.label, row = hack && note('Hackathons.md').split('\n').find(l => l.includes(hack))?.split('|').map(s => s.trim());
-  if (row) lines.push(`Hackathons: ${hack}, ${row[3]}, ${row[1]}.`);
-  const trip = note('Travel.md').match(/^## (.+)$/m)?.[1], cheap = note('Travel.md').match(/^\| Cheapest \| (€\d+) \| ([^|]+)\|/m);
-  if (trip && cheap) lines.push(`Travel: ${trip.replace('→', 'to').replace(/ · .*/, '')} on ${trip.match(/\d{4}-\d{2}-\d{2}/)?.[0] ?? ''}, from ${cheap[1]} today.`);
   return lines;
 }
 
-// The city for the weather: --city on the page server, else the Location line of notes/Me.md.
-export const homeCity = (override: string | null) => override ?? note('Me.md').match(/\*\*Location:\*\*\s*([^,\n]+)/)?.[1]?.trim() ?? '';
+// The city for the weather: --city on the page server, else none.
+export const homeCity = (override: string | null) => override ?? '';

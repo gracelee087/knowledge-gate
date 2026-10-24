@@ -525,18 +525,16 @@ $('#log').addEventListener('click', e => {
   if (src) { src.classList.add('hl'); src.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); setTimeout(() => src.classList.remove('hl'), 1600); }
 });
 
-// A quick answer ("what's new today", hackathons, flights, latest material): made by code from the morning's files, no model.
+// A quick answer ("what's new today", latest talks): made by code from the morning's files, no model.
 const renderQuick = (q, heard) => `<p>${esc(q.say)}</p><ul class="quick-l">${q.lines.map(l => `<li>${esc(l)}</li>`).join('')}</ul>
   <div class="sources">${q.links.map(l => `<div class="src"><span class="cite">↗</span><div>${ext(l.url, esc(l.label))}</div></div>`).join('')}</div>
   <div class="meta">Quick answer · code from ${esc(q.source)} · ${q.ms} ms${heard ? ` · asked by voice, Whisper ${(heard.sttMs / 1000).toFixed(1)} s on this laptop` : ''}</div>`;
 // A question asked by voice gets its answer read out, with the browser's own voices. Each job on the AI team has its own
 // voice (first name that exists wins, then pitch and rate keep them apart). Answers built from the notes use local
-// voices only; the public-data jobs (hackathons, flights, papers) may use the browser's online voices, which sound better.
+// voices only; the public-data job (latest talks) may use the browser's online voices, which sound better.
 const TEAM = {
   today: { name: 'Note Merger', local: true, voices: [/Zira/, /Hazel/], pitch: 1.05, rate: 1 },
   notes: { name: 'Notes Assistant', local: true, voices: [/David/, /George/], pitch: 0.95, rate: 0.98 },
-  hackathons: { name: 'Hackathon Scout', voices: [/Guy.*Natural/, /Christopher/, /Google US English/, /Mark/], pitch: 1, rate: 1.08 },
-  flights: { name: 'Travel Agent', voices: [/Aria.*Natural/, /Jenny/, /Google UK English Female/, /Susan|Hazel/], pitch: 1.1, rate: 1 },
   latest: { name: 'Paper Reader', voices: [/Ryan.*Natural/, /Google UK English Male/, /George/, /David/], pitch: 0.9, rate: 0.95 },
   host: { name: 'Host', voices: [/Jenny/, /Aria/, /Zira/], pitch: 1, rate: 1.02 },
 };
@@ -584,7 +582,7 @@ const TIRED = /\b(tired|exhausted|sleepy|need a break|relax)\b|피곤|힘들어/
 const RELAX_LINE = "You've worked hard today, Ms Lee. Take a breath. Here's something calm for a few minutes.";
 
 // While a spoken question is being answered, from the moment the mic stops: if nothing was said after 1.5 s, the host
-// talks over quiet music: greeting, weather, news headlines, a hackathon, the flight price (/api/fillers), one line
+// talks over quiet music: greeting, weather, the newest AI talk (/api/fillers), one line
 // after another. stop() ends it when the answer arrives; talked says whether the host said anything.
 let host = null;
 function startHost() {
@@ -613,12 +611,12 @@ async function submit(heard) {
   log.scrollTop = log.scrollHeight;
   const t0 = Date.now(), tick = setInterval(() => { const t = $(`#t${n}`); if (t) t.textContent = Math.round((Date.now() - t0) / 1000); }, 1000);
   if (!heard) stopMusic();
-  // "Good morning" / "brief me": the three things I follow, one after another, each by its own agent:
-  // the newest AI talks, hackathons, then flights. These are quick answers whose voices were made at server start.
+  // "Good morning" / "brief me": the newest AI talks, by their own agent.
+  // This is a quick answer whose voice was made at server start.
   if (heard && BRIEF.test(q)) {
     const greeted = host?.talked; host?.stop(); host = null; // the host may have greeted already while Whisper ran
     const f = await fetch('/api/fillers').then(r => r.json()).catch(() => ({ lines: [] }));
-    const parts = await Promise.all(['Latest material?', 'Any hackathons worth going to?', 'Flights to Korea?'].map(x =>
+    const parts = await Promise.all(['Latest material?'].map(x =>
       fetch('/api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: x, model, voice: true }) }).then(r => r.json()).then(j => j.quick).catch(() => null)));
     $(`#a${n}`).innerHTML = parts.filter(Boolean).map(p => agentTag(p.topic) + renderQuick(p, heard)).join('<hr style="border:0;border-top:1px solid var(--line, #ddd);margin:12px 0">');
     clearInterval(tick); busy = false; $('#send').disabled = false; $('#mic').disabled = false;
