@@ -5,7 +5,9 @@ what is new to my own notes, and my notes never leave my laptop.**
 
 ![The morning page on my laptop: today's new talks, each with a one-line conclusion, a summary with marked key phrases, and the "Ask your notes" panel](docs/images/morning-page.png)
 
-*The morning page at `http://127.0.0.1:4321` (Oct 22). Speaker names are blurred in this screenshot.*
+*The morning page in Chrome at `http://127.0.0.1:4321` on my laptop (Oct 24), with the talks that arrived that day.*
+
+**Demo video (1:59):** https://youtu.be/PV8kGpaRnAo
 
 > The project's working name was lecture-gate. Internal names keep it: the Atlas database `lecture_gate`, the Sentry
 > project, the Temporal task queue, the Backboard assistant and the `lg-*` services. Some screenshots show that name.
@@ -138,13 +140,13 @@ two concepts named in the same talk. The largest dot is Agent Harness.*
 ### On the laptop
 
 `npm run morning` (`src/cli/morning.ts`) runs three steps; on Windows, `deploy/morning-task.ps1` runs it from Task
-Scheduler at log-in:
+Scheduler when I log in or unlock the laptop:
 
 1. pull the cards and map data from Atlas,
 2. merge the new talks into my notes with the local Note Merger,
 3. mark the key phrases of each new summary for the morning page.
 
-Then `npm run web` serves the morning page on `127.0.0.1` only.
+Then `npm run web` serves the morning page ([below](#the-morning-page)).
 
 ## The AI agents, one job each
 
@@ -154,7 +156,7 @@ Then `npm run web` serves the morning page on `127.0.0.1` only.
 | **Quote Checker** | server | none, plain code | Looks for each quote word for word in the transcript. Only quotes that are found are shown. |
 | **Concept Matcher** | server | BAAI bge-m3 embeddings + Atlas Vector Search + Gemma 4 31B | Finds the 6 closest existing concept mentions and decides whether a new mention is one of them or a new concept, so ten talks about one idea become one concept page. |
 | **Note Merger** | laptop | Gemma 4 12B + EmbeddingGemma (Ollama) | Finds the note each new claim belongs to and adds only what the note does not already say. |
-| **Highlighter** | laptop | Gemma 4 12B (Ollama) | Picks one or two key phrases per summary for the green marks on the page. |
+| **Highlighter** | laptop | Gemma 4 12B (Ollama) | Picks one or two key phrases per summary for the marks on the page. |
 | **Notes Assistant** | laptop | Gemma 4 12B or E4B (Ollama) | Answers typed questions from the talks and my notes, with sources. |
 
 There is also a nightly **Rule Tester** (`src/agent/verify.ts`, a systemd timer at 03:00 UTC, outside Mastra): it turns
@@ -249,10 +251,14 @@ language model, so they come back fast:
   verified quotes.
 - Any other question is answered from the search alone: the start of my closest note in my own words, plus up to two
   close talk claims with their quotes. The page server loads the search model at start so the first spoken
-  question answers in under a second (smoke tests on Oct 24 measured about 0.2 to 0.6 s per answer).
+  question answers in under a second (smoke tests on Oct 24 measured about 0.2 to 0.6 s per answer). Whisper itself
+  adds about 3 to 5 s on my CPU before that.
 - If nothing in the talks or my notes is close enough, the answer is a fixed "not in your notes" reply, and the
   question is saved to `data/open_questions.json` on the laptop. When a later talk seems to answer it, the morning
   merge flags it.
+
+The suggested questions under "Ask your notes" take the same fast path when tapped, so it also works without
+the mic.
 
 ![A spoken question "How do I bake sourdough bread?" answered with "There's nothing on that in your notes yet. I've noted your question…", search only, no model](docs/images/voice-not-in-notes.png)
 
@@ -268,10 +274,11 @@ That mode is for the demo only.
   `ollama/...`.
 - `notes/` and `data/` are gitignored; only public talk data goes to MongoDB Atlas.
 - Voice (only with `--stt whisper`) is transcribed on the laptop; the Whisper weights are downloaded once.
-- Exceptions, so you know exactly what goes out from the laptop: the morning pull from Atlas; in ElevenLabs demo
-  mode, the spoken answer text; and while a slow spoken answer is loading, the page server fetches the weather from
-  Open-Meteo, only when started with `--city <name>` (only the city name is sent), for the host's waiting lines, and also requests the Hacker News top
-  stories (see the last limit below).
+- Exceptions, so you know exactly what goes out from the laptop:
+  - the morning pull from Atlas;
+  - in ElevenLabs demo mode, the text of the spoken answers;
+  - while a slow spoken answer is loading, the page server requests the Hacker News top stories (see the last limit
+    below) and, only when started with `--city <name>`, the weather from Open-Meteo (only the city name is sent).
 
 ## Stack
 
@@ -282,12 +289,12 @@ That mode is for the demo only.
   Sentry for errors and model-call timings on the server (only timings and token counts, never prompts or outputs).
 - **Language**: TypeScript on Node 22, run with `tsx`.
 
-## Numbers (checked against the data in this repo on 2026-10-24)
+## Numbers (counted on my laptop on the evening of 2026-10-24)
 
-- 92 talks with a card, 352 concept pages in 7 categories.
-- 386 of 432 quotes (89%) were found word for word in their transcript; only those are shown.
-- The morning merge on Oct 24 brought in 6 talks and added 25 new points, all to the category notes in
-  `notes/sections/`.
+- 95 talks with a card, 356 concept pages in 7 categories.
+- 397 of 444 quotes (89%) were found word for word in their transcript; only those are shown.
+- That evening two merges brought in 3 new talks and added 12 points: 2 to my own notes (Agent Harness, Code review
+  with agents) and 10 to the category notes in `notes/sections/`.
 
 ## Run it
 
