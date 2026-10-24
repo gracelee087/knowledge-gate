@@ -198,6 +198,20 @@ The models are never trusted on their own word. Code checks each answer, and a f
 
 *The kill test in Temporal (Oct 21): `addToMap` on attempt 2, the run completed in 5 min 47 s.*
 
+### Worst cases, and what happened
+
+While building it I kept asking: what is the worst thing this could do while I sleep? Each answer got a check, and
+each check has met the real thing.
+
+| What if… | What catches it | What happened |
+|---|---|---|
+| a card quotes something the speaker never said? | The Quote Checker keeps a quote only if it is in the transcript word for word. | 397 of 444 quotes found (Oct 24); only those are shown. |
+| the merge changes or deletes my own words? | The merge only appends, and a git check after every merge reports any existing line that was removed or changed. | Oct 21: my Agent Harness note went from 42 to 44 lines, my words untouched. Merging the same 4 talks again: 23 of 23 known, 0 appended. |
+| the server dies in the middle of a talk? | Temporal: a 5-minute timeout and up to 3 attempts per step. | The kill test above; and on Oct 22, for real, a card step timed out once and attempt 2 finished it. |
+| two different ideas are merged because they share a word? | 6 vector candidates, code accepts only an answer that names one, and a second, strict call checks every join. | "AI Factory" (data centers) was pulled out of "Software Factory". |
+| something fails on the server and nobody notices? | Sentry records each failed step as an issue. | LECTURE-GATE-4: the map step failed with `EACCES`, and the laptop had 77 cards while the server had 80. |
+| the laptop's morning step fails quietly? | Task Scheduler records the exit code, and `data/morning_log.txt` keeps the error. No alarm on the laptop yet. | Oct 24: my end-to-end check, not an alarm, found that the morning task still ran an old copy of the project and failed, and that the morning step stopped at the map on four leftover paper cards. Both fixed; the next run ended with result 0. |
+
 ## My note, before and after
 
 The Note Merger works on my own Markdown notes. For each new claim it picks at most one note (a note named after
