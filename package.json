@@ -1,0 +1,35 @@
+{
+  "name": "lecture-gate",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "list": "tsx src/cli/list.ts",
+    "morning": "tsx src/cli/morning.ts",
+    "ask": "tsx src/cli/ask.ts",
+    "web": "tsx src/cli/web.ts",
+    "fetch": "tsx src/cli/fetch.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "@mastra/core": "^1.78.0",
+    "@mastra/temporal": "^0.4.16",
+    "@sentry/node": "^11.8.0",
+    "@temporalio/client": "^1.24.0",
+    "@temporalio/envconfig": "^1.24.0",
+    "@temporalio/worker": "^1.24.0",
+    "backboard-sdk": "^1.5.19",
+    "mongodb": "^7.7.0",
+    "ollama-ai-provider-v2": "^4.0.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}

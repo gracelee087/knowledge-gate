@@ -1,0 +1,13 @@
+.env
+.venv/
+node_modules/
+measure/*.mp3
+data/
+notes/
+# built from collected YouTube talks (titles, speakers, quotes): stays on the laptop
+map/
+notes.example/
+measure/
+
+# dev.to drafts stay local until the post is published
+docs/DEV_POST*.md

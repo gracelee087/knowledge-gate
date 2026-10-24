@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lecture-gate · on this laptop</title>
+<style>
+  /* Nothing is loaded from the internet: system fonts and inline icons only, so the page works with Wi-Fi off.
+     The page reads like a well-kept note: a date, one section per talk (title, conclusion, summary), moments as a toggle. */
+  /* Always dark (the user's choice), whatever the system theme. */
+  :root {
+    color-scheme:dark;
+    --bg:#121110; --paper:#1a1916; --ink:#f0ece2; --ink2:#cdc7b9; --muted:#958e7f; --rule:#2e2b25; --rule2:#cdc7b9; --soft:#24221d;
+    --accent:#8fc9b4; --accent-ink:#0e1d18; --accent-soft:#1c2c26;
+    --hl:#3a3013; --hl-edge:#b98f22; --red:#ff6f62; --yt:#e62117; --ok:#2e8b57;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 14px 34px -14px rgba(0,0,0,.6);
+    --sans:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
+    --serif:var(--sans);
+    --display:var(--sans);
+    --mono:"Cascadia Mono",Consolas,ui-monospace,monospace;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { height:100%; }
+  body { background:var(--bg); color:var(--ink); font:15px/1.55 var(--sans); display:flex; flex-direction:column; overflow:hidden; -webkit-font-smoothing:antialiased; }
+  a { color:inherit; }
+  button { font:inherit; color:inherit; }
+
+  /* top bar */
+  header { display:flex; align-items:center; gap:18px; padding:10px 22px; background:var(--paper); border-bottom:1px solid var(--rule); flex-wrap:wrap; }
+  .logo { display:flex; align-items:center; gap:9px; margin-right:auto; }
+  .mark { width:26px; height:26px; border-radius:7px; background:var(--ink); display:grid; place-items:center; }
+  .mark svg { stroke:var(--paper); }
+  .logo b { font:700 17px/1 var(--display); letter-spacing:-.01em; }
+  .logo small { color:var(--muted); font-size:12px; margin-left:4px; }
+  .stat { display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); white-space:nowrap; }
+  .stat .fail { color:var(--red); font-weight:600; }
+  .dot { width:7px; height:7px; border-radius:50%; background:var(--muted); flex:none; }
+  .dot.ok { background:var(--ok); }
+  .dot.bad { background:var(--red); box-shadow:0 0 0 3px color-mix(in srgb, var(--red) 18%, transparent); }
+
+  /* a quiet sidebar like a notes app: Today, Tonight, then the sections */
+  main { flex:1; min-height:0; display:grid; grid-template-columns:232px 1fr minmax(340px, 420px); }
+  @media (max-width: 1100px) { main { grid-template-columns:200px 1fr 340px; } }
+  @media (max-width: 860px) { body { overflow:auto; } main { grid-template-columns:1fr; min-height:auto; } section.chat { height:80vh; border-left:0; border-top:1px solid var(--rule); } nav { border-right:0; border-bottom:1px solid var(--rule); } .stat { display:none; } }
+  nav { border-right:1px solid var(--rule); overflow:auto; padding:20px 12px 30px; }
+  .nav-h { font-size:12px; font-weight:600; color:var(--muted); padding:18px 10px 6px; }
+  .tab { width:100%; text-align:left; border:0; background:none; cursor:pointer; padding:6px 10px; border-radius:7px; font-size:14px; color:var(--ink2); display:flex; gap:8px; align-items:center; }
+  .tab:hover { background:var(--soft); color:var(--ink); }
+  .tab.on { background:var(--accent-soft); color:var(--accent); font-weight:700; box-shadow:inset 3px 0 0 var(--accent); } /* the open view, plainly marked */
+  .tab .n { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tab .k { font-size:12px; color:var(--muted); }
+  .cnt { font-size:11px; font-weight:700; color:var(--ink2); background:var(--rule); padding:0 6px; border-radius:999px; }
+  .new { font-size:10px; font-weight:800; letter-spacing:.08em; color:#fff; background:var(--red); padding:2px 6px; border-radius:4px; white-space:nowrap; }
+  .upd { font-size:10px; font-weight:800; letter-spacing:.08em; color:#f2c94c; background:var(--hl); border:1px solid var(--hl-edge); padding:1px 6px; border-radius:4px; }
+  /* folded lists at the end of the note */
+  .fold { margin-top:14px; border-top:1px solid var(--rule); padding-top:12px; }
+  .fold > summary { list-style:none; cursor:pointer; font-size:13.5px; font-weight:600; color:var(--muted); }
+  .fold > summary::-webkit-details-marker { display:none; }
+  .fold > summary::before { content:"▸"; display:inline-block; width:16px; transition:transform .2s; }
+  .fold[open] > summary::before { transform:rotate(90deg); }
+  .fold > summary:hover { color:var(--ink); }
+  .nc { display:grid; grid-template-columns:52px 1fr; gap:2px 9px; padding:8px 0 8px 16px; font-size:13.5px; }
+  .nc .d { color:var(--muted); font-family:var(--mono); font-size:11.5px; padding-top:2px; }
+  .nc .ti a { font-weight:600; line-height:1.4; text-decoration:none; }
+  .nc .ti a:hover { text-decoration:underline; }
+  .nc .ol { display:block; color:var(--muted); margin-top:2px; }
+  .nc .why { grid-column:2; color:var(--red); font-size:12.5px; }
+  .nc .why.unk { color:var(--muted); font-style:italic; }
+  .fold.side { margin:18px 0 0; padding:12px 10px 0; }
+  .fold.side > summary { font-size:12px; }
+  .fold.side .nc { display:block; padding:8px 0 4px; font-size:12.5px; }
+  .fold.side .why { display:block; margin-top:2px; }
+  .credits { margin-top:28px; font-size:12.5px; line-height:1.6; color:var(--muted); }
+  .credits b { color:var(--ink2); font-weight:600; }
+
+  /* the note */
+  .report { flex:1; overflow:auto; padding:40px clamp(20px, 4vw, 56px) 96px; }
+  .doc { max-width:700px; margin:0 auto; }
+  .eyebrow { font-size:11.5px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+  .doc h1 { font:700 34px/1.15 var(--display); letter-spacing:-.015em; margin-top:6px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  .doc .def { color:var(--ink2); margin-top:8px; font:17px/1.6 var(--serif); }
+  .doc .stats { color:var(--muted); font-size:13px; margin-top:8px; }
+  .quiet { color:var(--muted); font-style:italic; }
+  .yt { flex:none; }
+  .section-h { font-size:18px; font-weight:700; color:var(--ink); margin:40px 0 4px; }
+
+  /* the note's head: date, title, one quiet line */
+  .notehead { padding-bottom:6px; }
+  .nh-date { font-size:13px; color:var(--muted); }
+  .notehead h1 { font:700 30px/1.2 var(--sans); letter-spacing:-.015em; margin:4px 0 6px; }
+  .nh-sub { font-size:13.5px; color:var(--muted); }
+  .tag { display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:600; text-decoration:none; cursor:pointer; }
+  .tag:hover { text-decoration:underline; }
+  .chg .tag { font-weight:500; border:1px solid var(--rule); background:var(--paper); border-radius:6px; padding:1px 8px; margin:4px 4px 0 0; }
+
+  /* one section per talk: title, a line of facts, the conclusion as a callout, the summary, moments as a toggle */
+  .story { padding:28px 0 6px; border-top:1px solid var(--rule); margin-top:24px; }
+  .story h2 { font:700 19px/1.35 var(--sans); letter-spacing:-.005em; text-wrap:pretty; }
+  .story h2 a { text-decoration:none; }
+  .story h2 a:hover { text-decoration:underline; }
+  .facts { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:7px; font-size:12.5px; color:var(--muted); }
+  .facts .sp { width:3px; height:3px; border-radius:50%; background:var(--muted); }
+  .watch { margin-left:auto; flex:none; display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; border:1px solid var(--rule); background:none; color:var(--ink2); border-radius:999px; padding:3px 11px; cursor:pointer; white-space:nowrap; }
+  .watch:hover { border-color:var(--ink2); }
+  .watch.on { background:var(--ink); color:var(--paper); border-color:var(--ink); }
+  .callout { margin-top:14px; padding:11px 14px; border-radius:8px; background:var(--soft); border-left:3px solid var(--accent); font-size:15px; font-weight:600; line-height:1.5; color:var(--ink); }
+  .lede { font-size:15px; line-height:1.7; color:var(--ink2); margin-top:12px; }
+  mark.key { color:var(--ink); background:rgba(111, 207, 151, .16); box-shadow:0 0 0 2px rgba(111, 207, 151, .16); border-radius:3px; }
+  /* the list of moments is a toggle, closed until clicked */
+  .mbox { margin-top:12px; }
+  .mbox > summary { list-style:none; cursor:pointer; display:inline-flex; align-items:center; gap:6px; font-size:13.5px; font-weight:600; color:var(--muted); padding:3px 0; }
+  .mbox > summary::-webkit-details-marker { display:none; }
+  .mbox > summary::before { content:"▸"; display:inline-block; width:12px; transition:transform .2s; }
+  .mbox[open] > summary::before { transform:rotate(90deg); }
+  .mbox > summary:hover { color:var(--ink); }
+  .mbox > summary small { font-weight:400; font-size:12.5px; }
+  .moments { list-style:none; margin:4px 0 0 18px; }
+  .moments li { display:grid; grid-template-columns:62px 1fr; gap:12px; padding:8px 0; }
+  .tm { display:inline-flex; align-items:center; gap:6px; align-self:start; margin-top:2px; font:600 12.5px var(--mono); color:var(--ink); text-decoration:none; }
+  .tm::before { content:""; border-left:7px solid var(--yt); border-top:4.5px solid transparent; border-bottom:4.5px solid transparent; }
+  .tm:hover { color:var(--yt); }
+  .moments .c { font-size:14.5px; line-height:1.5; color:var(--ink2); }
+  /* the verified quote stays folded until the claim is clicked */
+  .moments summary { list-style:none; cursor:pointer; }
+  .moments summary::-webkit-details-marker { display:none; }
+  .qhint { display:inline-flex; align-items:center; gap:4px; margin-left:8px; font-size:11px; font-weight:600; letter-spacing:.04em; color:var(--muted); border:1px solid var(--rule); border-radius:999px; padding:0 8px; vertical-align:2px; white-space:nowrap; }
+  .qhint::after { content:"▾"; transition:transform .2s; transform:rotate(-90deg); }
+  details[open] .qhint::after { transform:none; }
+  .moments summary:hover .qhint { color:var(--ink); border-color:var(--ink2); }
+  .moments q, .entry q, .src q { display:block; margin-top:5px; font:italic 14.5px/1.55 var(--serif); color:var(--muted); quotes:"\201C" "\201D"; }
+
+  /* inline timestamp link (category pages, notes, chat sources) */
+  .t { display:inline-flex; align-items:center; gap:4px; font:12px var(--mono); text-decoration:none; background:var(--paper); border:1px solid var(--rule); border-radius:6px; padding:0 7px; margin-left:6px; white-space:nowrap; vertical-align:1px; color:var(--ink); }
+  .t:hover { border-color:var(--yt); }
+  .t::before { content:""; border-left:6px solid var(--yt); border-top:4px solid transparent; border-bottom:4px solid transparent; }
+
+  /* category pages */
+  .brief { margin:24px 0 8px; background:var(--paper); border:1px solid var(--rule); border-radius:12px; overflow:hidden; }
+  .brief-h { display:flex; align-items:center; gap:10px; padding:12px 18px; border-bottom:1px solid var(--rule); background:color-mix(in srgb, var(--hl) 50%, var(--paper)); }
+  .brief-h b { font:700 16px var(--display); }
+  .brief-b { padding:12px 18px 16px; }
+  .brief-b ul { list-style:none; display:grid; gap:12px; }
+  .brief-b li { display:grid; grid-template-columns:auto 1fr; gap:2px 10px; align-items:start; }
+  .brief-b li .yt { margin-top:4px; }
+  .brief-b .ttl { font-weight:600; text-decoration:none; }
+  .brief-b .ttl:hover { text-decoration:underline; }
+  .brief-b .ol { grid-column:2; color:var(--ink2); font:15px/1.5 var(--serif); }
+  .brief-b .by { color:var(--muted); font-size:12.5px; }
+  .brief-b .chg { margin-top:14px; font-size:13.5px; color:var(--ink2); }
+  .concept { border-top:1px solid var(--rule); padding:20px 0 8px; }
+  .concept > summary { list-style:none; cursor:pointer; display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
+  .concept > summary::-webkit-details-marker { display:none; }
+  .concept > summary h3 { font:700 21px/1.3 var(--display); }
+  .concept > summary .meta2 { color:var(--muted); font-size:12.5px; margin-left:auto; }
+  .concept > summary::after { content:"▾"; color:var(--muted); transition:transform .2s; }
+  .concept:not([open]) > summary::after { transform:rotate(-90deg); }
+  .notetag { font-size:11.5px; font-weight:600; color:var(--accent); background:var(--accent-soft); border-radius:5px; padding:1px 7px; }
+  .entry { margin:12px 0 4px; padding:12px 16px 8px; border-radius:10px; }
+  .entry.is-new { background:var(--hl); border-left:3px solid var(--hl-edge); border-radius:3px 10px 10px 3px; }
+  .src-line { display:flex; gap:8px; align-items:flex-start; font-size:12.5px; color:var(--muted); }
+  .src-line .yt { margin-top:2px; }
+  .src-line a { color:var(--ink2); }
+  .src-line .when { margin-left:auto; white-space:nowrap; display:flex; gap:6px; align-items:center; }
+  .what { margin-top:6px; font:16px/1.55 var(--serif); }
+  .entry ul { margin:8px 0 4px 18px; display:grid; gap:7px; font-size:14px; color:var(--ink2); }
+  /* My Note: the whole note, my own words first, then what the morning merge appended under them */
+  .mine-text { margin-top:22px; font:16px/1.65 var(--serif); color:var(--ink); }
+  .mine-text h3 { font-size:15px; font-weight:700; margin:20px 0 4px; }
+  .mine-text ul { margin:4px 0 0 20px; }
+  .ngrp { margin-top:18px; font-size:13px; color:var(--muted); display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .ngrp a { color:var(--ink2); font-weight:600; }
+  .nadd { margin-top:6px; padding:7px 12px; border-radius:8px; font-size:14.5px; }
+  .nadd.is-new { background:var(--hl); border-left:3px solid var(--hl-edge); }
+  .mynote { margin:14px 0 6px; border:1px dashed var(--accent); border-radius:10px; padding:11px 15px; font-size:14px; }
+  .mynote h5 { font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); margin-bottom:5px; }
+  .mynote .mine { color:var(--ink2); }
+  .mynote .add { margin-top:6px; padding:6px 10px; border-radius:8px; }
+  .mynote .add.is-new { background:var(--hl); border-left:3px solid var(--hl-edge); }
+
+  /* note changes */
+  .prop { margin-top:12px; border-radius:10px; padding:12px 16px; background:var(--hl); border-left:3px solid var(--hl-edge); font-size:14px; }
+  .prop .old { text-decoration:line-through; color:var(--muted); margin-top:5px; font-family:var(--serif); }
+  .prop .neu { font-weight:600; margin-top:4px; font-family:var(--serif); font-size:15px; }
+  .prop .why { color:var(--muted); font-size:12.5px; margin-top:7px; }
+  .prop .act { display:flex; gap:8px; margin-top:10px; }
+  .prop .act button { font-size:12.5px; font-weight:600; border-radius:999px; padding:5px 14px; cursor:pointer; border:1px solid var(--rule); background:var(--paper); }
+  .prop .act .yes { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+  .prop.done { background:var(--soft); border-left-color:var(--rule); }
+
+  /* ask drawer */
+  section.chat { min-height:0; display:flex; flex-direction:column; background:var(--paper); border-left:1px solid var(--rule); }
+  .chat-h { display:flex; align-items:center; gap:10px; padding:14px 18px; border-bottom:1px solid var(--rule); }
+  .chat-h b { font:700 17px var(--display); }
+  .chat-h small { color:var(--muted); font-size:12px; display:block; }
+  #log { flex:1; overflow:auto; padding:20px; display:flex; flex-direction:column; gap:16px; }
+  .msg.me { align-self:flex-end; max-width:88%; background:var(--accent); color:var(--accent-ink); padding:10px 15px; border-radius:18px 18px 5px 18px; }
+  .msg.bot { align-self:stretch; background:var(--bg); border:1px solid var(--rule); padding:15px 17px; border-radius:16px 16px 16px 5px; }
+  .msg.bot p + p, .msg.bot ul + p, .msg.bot p + ul { margin-top:8px; }
+  .msg.bot ul { padding-left:20px; }
+  .msg.bot li + li { margin-top:4px; }
+  .hello { background:none !important; border:0 !important; padding:0 !important; }
+  .hello p { color:var(--muted); font-size:14px; }
+  .chips { display:flex; flex-direction:column; gap:8px; margin-top:14px; }
+  .chips button { text-align:left; font-size:13.5px; padding:10px 13px; border-radius:10px; border:1px solid var(--rule); background:var(--paper); cursor:pointer; }
+  .chips button:hover { border-color:var(--accent); background:var(--accent-soft); }
+  .cite { display:inline-block; font:600 11.5px var(--mono); padding:0 6px; margin:0 1px; border-radius:5px; background:var(--accent-soft); color:var(--accent); cursor:pointer; vertical-align:1px; }
+  .sources { margin-top:14px; border-top:1px dashed var(--rule); padding-top:12px; display:grid; gap:8px; }
+  .src { display:grid; grid-template-columns:auto 1fr; gap:4px 10px; font-size:13.5px; padding:9px 11px; border-radius:10px; background:var(--paper); border:1px solid var(--rule); }
+  .src.hl { outline:2px solid var(--accent); }
+  .src b { font-weight:600; }
+  .meta { margin-top:10px; font-size:12px; color:var(--muted); }
+  .warn { margin-top:8px; font-size:12.5px; color:var(--red); }
+  .thinking { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:14px; }
+  .dots span { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--accent); margin-right:3px; animation:b 1.2s infinite ease-in-out; }
+  .dots span:nth-child(2) { animation-delay:.15s; } .dots span:nth-child(3) { animation-delay:.3s; }
+  @keyframes b { 0%, 80%, 100% { transform:scale(.5); opacity:.4; } 40% { transform:scale(1); opacity:1; } }
+  form { padding:12px 18px 16px; border-top:1px solid var(--rule); display:grid; gap:9px; }
+  .seg { display:inline-flex; border:1px solid var(--rule); border-radius:999px; overflow:hidden; justify-self:start; }
+  .seg button { font-size:12.5px; padding:5px 13px; border:0; background:var(--soft); color:var(--muted); cursor:pointer; }
+  .seg button.on { background:var(--ink); color:var(--paper); }
+  .row { display:flex; gap:9px; align-items:flex-end; }
+  textarea { flex:1; font:inherit; resize:none; padding:11px 14px; border-radius:14px; border:1px solid var(--rule); background:var(--bg); color:var(--ink); min-height:46px; max-height:150px; }
+  textarea:focus { outline:2px solid var(--accent); outline-offset:-1px; }
+  #send { font-weight:600; padding:12px 18px; border-radius:14px; border:0; background:var(--accent); color:var(--accent-ink); cursor:pointer; }
+  #send:disabled { opacity:.5; cursor:default; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <span class="mark"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke-width="1.8" stroke-linecap="round"><path d="M3 3h4.5a1.5 1.5 0 0 1 1.5 1.5V13a1 1 0 0 0-1-1H3zM13 3H10.5A1.5 1.5 0 0 0 9 4.5V13a1 1 0 0 1 1-1h3z"/></svg></span>
+    <b>lecture-gate</b>
+  </div>
+  <span class="stat" id="net"><span class="dot"></span>…</span>
+  <span class="stat" id="got"><span class="dot"></span>…</span>
+  <span class="stat" id="ollama"><span class="dot"></span>checking Ollama…</span>
+</header>
+
+<main>
+  <nav id="nav"></nav>
+  <div class="report" id="report"></div>
+<section class="chat" aria-label="Ask about the talks and your notes">
+  <div class="chat-h"><div><b>Ask your notes</b><small>Notes Assistant · Gemma 4 in Ollama on this laptop · answers from the talks and your notes · nothing leaves the laptop</small></div></div>
+  <div id="log">
+    <div class="msg bot hello">
+      <p>Answers use only the lecture claims and your notes on this laptop, and every point cites its source.</p>
+      <div class="chips" id="chips"></div>
+    </div>
+  </div>
+  <form id="f">
+    <div class="seg" id="model"></div>
+    <div class="row"><textarea id="q" rows="1" placeholder="Ask a question…"></textarea><button id="send">Ask</button></div>
+  </form>
+</section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const ext = (href, html, cls = '') => `<a ${cls ? `class="${cls}" ` : ''}href="${esc(href)}" target="_blank" rel="noopener">${html}</a>`;
+const YT = '<svg class="yt" width="18" height="13" viewBox="0 0 20 14"><rect width="20" height="14" rx="4" fill="#e62117"/><path d="M8 4v6l5-3z" fill="#fff"/></svg>';
+const day = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+const longDay = d => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+const plural = (n, w) => `${n} ${n === 1 ? w : w.endsWith('y') ? w.slice(0, -1) + 'ies' : w + 's'}`;
+const oneLine = s => String(s ?? '').replace(/\s+/g, ' ').trim();
+let N, R, view = 'brief', model = 'ollama/gemma4:12b', busy = false;
+let talk, byCat, conceptsOf, latestMerge, noteOf;
+
+async function ollama() {
+  const r = await fetch('/api/ollama').then(r => r.json()).catch(() => ({ up: false, models: [] }));
+  $('#ollama').innerHTML = r.up ? `<span class="dot ok"></span>Local agents ready · Ollama` : '<span class="dot bad"></span>Ollama is not running';
+}
+function pills() {
+  $('#net').innerHTML = N.pulled
+    ? `<span class="dot ok"></span>Atlas · downloaded ${new Date(N.pulled).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}`
+    : '<span class="dot"></span>Atlas · not downloaded yet';
+  const got = N.arrivals.filter(a => new Date(a.published).toLocaleDateString('sv') === R.latest), made = got.filter(a => a.card).length, miss = got.length - made;
+  $('#got').innerHTML = !R.latest ? '<span class="dot"></span>No uploads yet'
+    : `<span class="dot ok"></span>${R.latest === N.today ? 'Today' : day(R.latest)} · ${plural(got.length, 'talk')} · ${plural(made, 'card')}${miss ? ` · <b class="fail">${miss} no card</b>` : ''}`;
+}
+
+// My notes: what the morning merge appended under "## From lectures", per talk.
+function parseNote(n) {
+  const [mine, from = ''] = n.text.split(/^## From lectures\s*$/m);
+  const adds = []; let cur = null;
+  for (const l of from.split('\n')) {
+    let m = l.match(/^### merged (\S+) · \[(.*)\]\((.*)\)$/);
+    if (m) { cur = { date: m[1], title: m[2], url: m[3], vid: (m[3].match(/v=([\w-]+)/) || [])[1] }; continue; }
+    m = l.match(/^- (.*?)(?: — "(.*)")? \[(\d+:\d+(?::\d+)?)\]\((.*)\)$/);
+    if (m && cur) adds.push({ ...cur, claim: m[1], quote: m[2], at: m[3], link: m[4] });
+  }
+  const own = mine.split('\n').filter(l => l.trim() && !/^#/.test(l)).map(l => l.replace(/^- /, '')).slice(0, 3);
+  return { name: n.name, own, adds };
+}
+
+function index() {
+  talk = new Map(R.talks.map(t => [t.videoId, t]));
+  byCat = new Map();
+  for (const t of R.talks) (byCat.get(t.category) ?? byCat.set(t.category, []).get(t.category)).push(t);
+  // Per category: concept -> its mentions from that category's talks, oldest first.
+  conceptsOf = new Map();
+  for (const m of R.mentions) {
+    const t = talk.get(m.videoId), cat = t.category;
+    const map = conceptsOf.get(cat) ?? conceptsOf.set(cat, new Map()).get(cat);
+    (map.get(m.concept) ?? map.set(m.concept, []).get(m.concept)).push({ ...m, t });
+  }
+  for (const map of conceptsOf.values()) for (const list of map.values()) list.sort((a, b) => a.t.date.localeCompare(b.t.date));
+  const notes = N.notes.map(parseNote);
+  latestMerge = notes.flatMap(n => n.adds.map(a => a.date)).sort().at(-1);
+  noteOf = new Map(notes.map(n => [n.name.toLowerCase(), n]));
+}
+const catState = cat => {
+  const list = [...(conceptsOf.get(cat) ?? new Map()).entries()];
+  const fresh = list.filter(([, ms]) => ms.some(m => m.t.isNew));
+  return {
+    newTalks: (byCat.get(cat) ?? []).filter(t => t.isNew),
+    added: fresh.filter(([, ms]) => ms.every(m => m.t.isNew)).map(([k]) => k),   // concepts first seen in the new talks
+    updated: fresh.filter(([, ms]) => !ms.every(m => m.t.isNew)).map(([k]) => k), // concepts the map had, with something new
+    concepts: list.length,
+  };
+};
+
+function nav() {
+  const total = R.talks.filter(t => t.isNew).length;
+  $('#nav').innerHTML = `<button class="tab${view === 'brief' ? ' on' : ''}" data-c="brief"><span class="n">Today</span>${total ? `<span class="new">${total}</span>` : ''}</button>
+    <button class="tab${view === 'tonight' ? ' on' : ''}" data-c="tonight"><span class="n">Tonight</span>${R.watch.length ? `<span class="cnt">${R.watch.length}</span>` : ''}</button>
+    <div class="nav-h">My Note · ${N.notes.length}</div>
+    ${N.notes.map(n => { const a = parseNote(n).adds; return `<button class="tab${view === 'note:' + n.name ? ' on' : ''}" data-c="note:${esc(n.name)}"><span class="n">${esc(n.name)}</span>${a.some(x => x.date === latestMerge) ? '<span class="new">NEW</span>' : `<span class="k">${a.length}</span>`}</button>`; }).join('')}
+    <div class="nav-h">Sections · ${R.talks.length} talks</div>
+    ${N.categories.map(c => { const k = catState(c.name).newTalks.length; return `<button class="tab${view === c.name ? ' on' : ''}" data-c="${esc(c.name)}"><span class="n">${esc(c.name)}</span>${k ? `<span class="new">${k}</span>` : `<span class="k">${c.size}</span>`}</button>`; }).join('')}
+    <details class="fold side"><summary>No card · ${R.noCard.length}</summary>${R.noCard.map(x => `<div class="nc"><span class="ti">${ext(`https://www.youtube.com/watch?v=${x.videoId}`, esc(x.title))}<span class="ol">${day(x.date)}</span></span>
+      <span class="why${x.reason ? '' : ' unk'}">${x.reason ? esc(x.reason) : 'reason not synced yet'}</span></div>`).join('') || '<div class="nc"><span class="quiet">none</span></div>'}</details>`;
+}
+$('#nav').addEventListener('click', e => { const b = e.target.closest('.tab'); if (b) go(b.dataset.c); });
+function go(v, concept) {
+  view = v; nav(); $('#report').innerHTML = v === 'brief' ? brief() : v === 'tonight' ? tonight() : v.startsWith('note:') ? noteView(v.slice(5)) : report(v);
+  const el = concept && document.getElementById(`c-${concept}`);
+  if (el) { el.open = true; el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } else $('#report').scrollTop = 0;
+}
+
+const talkLine = t => `<li>${YT}<div>${ext(t.url, esc(t.title), 'ttl')}<div class="by">${esc(oneLine(t.speakers))}${t.speakers ? ' · ' : ''}${esc(t.kind)}${t.length ? ` · ${esc(t.length)}` : ''}</div></div><div class="ol">${esc(t.oneLine)}</div></li>`;
+const tags = (cat, names) => names.map(k => `<a class="tag" data-cat="${esc(cat)}" data-k="${esc(k)}">${esc(k)}</a>`).join('');
+
+// A talk as a section of the note: its title, a line of facts, the one-line conclusion as a callout, the summary,
+// and the claims as a toggle of moments.
+const watching = id => R.watch.includes(id);
+function talkCard(t) {
+  const on = watching(t.videoId);
+  return `<article class="story">
+    <h2>${ext(t.url, esc(t.title))}</h2>
+    <div class="facts">${YT}<span>${esc(t.category)}</span>${t.length ? `<span class="sp"></span><span>${esc(t.length)}</span>` : ''}${t.isNew ? '<span class="new">NEW</span>' : ''}
+      <button class="watch${on ? ' on' : ''}" data-watch="${esc(t.videoId)}">${on ? '✓ Tonight' : '+ Watch tonight'}</button></div>
+    <div class="callout">${esc(t.oneLine)}</div>
+    ${t.summary ? `<p class="lede">${marked(t.summary, t.keys)}</p>` : ''}
+    <details class="mbox"><summary>${plural(t.claims.length, 'key moment')} <small>· each opens the video at that second</small></summary>
+    <ol class="moments">${t.claims.map(c => `<li>${ext(c.link, esc(c.at), 'tm')}${c.quote
+      ? `<details><summary class="c">${esc(c.claim)}<span class="qhint">quote</span></summary><q>${esc(c.quote)}</q></details>`
+      : `<div class="c">${esc(c.claim)}</div>`}</li>`).join('')}</ol></details>
+  </article>`;
+}
+// The key phrases (src/cli/highlight.ts, checked to be word for word in the summary) get a light-green mark.
+const marked = (text, keys = []) => keys.reduce((h, k) => h.split(esc(k)).join(`<mark class="key">${esc(k)}</mark>`), esc(text));
+const words = t => [t.oneLine, t.summary, ...t.claims.flatMap(c => [c.claim, c.quote])].join(' ').split(/\s+/).filter(Boolean).length;
+
+function proposalCard(p) {
+  const open = p.status === 'open';
+  return `<div class="prop${open ? '' : ' done'}"><b>${esc(p.note)}</b> · ${open ? 'suggested edit' : esc(p.status)}
+    <div class="old">${esc(p.old)}</div><div class="neu">${esc(p.revised)}</div>
+    <div class="why">Because: ${esc(p.claim)}${ext(p.link, esc(p.at), 't')} — ${esc(p.title)}</div>
+    ${open ? `<div class="act"><button class="yes" data-prop="${esc(p.id)}" data-act="apply">Apply to my note</button><button data-prop="${esc(p.id)}" data-act="reject">Keep my sentence</button></div>` : ''}</div>`;
+}
+
+// The morning page: about 15 minutes of reading. The date, each new talk as a section, what changed in my notes,
+// then the earlier talks and the uploads without a card, folded, and who did the work.
+function brief() {
+  const fresh = R.talks.filter(t => t.isNew).sort((a, b) => a.category.localeCompare(b.category));
+  const cats = N.categories.map(c => [c, catState(c.name)]).filter(([, s]) => s.newTalks.length);
+  const lines = N.notes.map(parseNote).flatMap(n => n.adds.map(a => ({ ...a, note: n.name }))).filter(a => a.date === latestMerge);
+  const open = R.proposals.filter(p => p.status === 'open');
+  const minutes = Math.max(1, Math.round((fresh.reduce((a, t) => a + words(t), 0) + lines.length * 40 + open.length * 60) / 200));
+  const earlier = R.talks.filter(t => !t.isNew).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 12);
+  return `<div class="doc">
+    <div class="notehead">
+      <div class="nh-date">${R.latest ? `${longDay(R.latest)}${R.latest === N.today ? '' : ' · latest upload'}` : 'No uploads yet'}</div>
+      <h1>${R.latest === N.today ? 'Today’s talks' : 'Latest talks'}</h1>
+      <div class="nh-sub">${fresh.length ? plural(fresh.length, 'new talk') : 'Nothing new came in'} · about ${minutes} min to read${cats.length ? ` · ${cats.map(([c]) => `<a class="tag" data-go="${esc(c.name)}">${esc(c.name)}</a>`).join(', ')}` : ''}</div>
+    </div>
+    ${fresh.map(talkCard).join('') || '<p class="quiet" style="margin-top:28px">No new talk.</p>'}
+    ${open.length || lines.length ? '<div class="section-h">Your notes</div><div class="nh-sub">Linked by Note Merger (Gemma 4 12B) on this laptop; your own sentences are never changed.</div>' : ''}
+    ${open.map(proposalCard).join('')}
+    ${lines.map(a => `<div class="prop"><b>${esc(a.note)}</b> · added<div style="margin-top:4px">${esc(a.claim)}${ext(a.link, esc(a.at), 't')}</div></div>`).join('')}
+    <details class="fold" style="margin-top:40px"><summary>Earlier talks · ${earlier.length}</summary>${earlier.map(t => `<div class="nc"><span class="d">${day(t.date)}</span><span class="ti">${ext(t.url, esc(t.title))}<span class="ol">${esc(t.oneLine)}</span></span></div>`).join('')}</details>
+    <p class="credits">Who did the work: <b>Card Writer (Gemma 4 31B)</b> wrote each card on the server, and <b>Quote Checker (code)</b> kept only the quotes found word for word in the transcript.
+      On this laptop, <b>Highlighter (Gemma 4 12B)</b> marked the green phrases and <b>Note Merger (Gemma 4 12B)</b> linked new claims to your notes.</p>
+    </div>`;
+}
+
+// My Note: one of my notes in full. My own words as written, then what the morning merge appended,
+// talk by talk, newest first; the latest merge is marked new. The page only reads the note.
+const md = text => text.split('\n').filter(l => !/^# /.test(l)).join('\n').trim().split(/\n\s*\n/).map(b => {
+  const ls = b.split('\n'), h = ls[0].match(/^##+ (.*)/), items = ls.slice(h ? 1 : 0);
+  const body = items.every(l => /^- /.test(l)) && items.length ? `<ul>${items.map(l => `<li>${esc(l.slice(2))}</li>`).join('')}</ul>` : items.length ? `<p>${esc(items.join(' '))}</p>` : '';
+  return (h ? `<h3>${esc(h[1])}</h3>` : '') + body;
+}).join('');
+function noteView(name) {
+  const n = N.notes.find(x => x.name === name), { adds } = parseNote(n);
+  const groups = [];
+  for (const a of adds) { const g = groups.at(-1); if (g && g.date === a.date && g.vid === a.vid) g.items.push(a); else groups.push({ ...a, items: [a] }); }
+  const last = adds.map(a => a.date).sort().at(-1);
+  return `<div class="doc"><div class="eyebrow">My Note</div><h1>${esc(name)}</h1>
+    <p class="stats">${n.text.trimEnd().split('\n').length} lines · ${plural(adds.length, 'point')} from ${plural(new Set(adds.map(a => a.vid)).size, 'talk')}${last ? ` · last grown ${day(last)}` : ''} · your own sentences are never changed</p>
+    <div class="mine-text">${md(n.text.split(/^## From lectures\s*$/m)[0])}</div>
+    ${groups.length ? '<div class="section-h">From lectures</div><div class="nh-sub">Added by Note Merger (Gemma 4 12B) on this laptop, only below your own words.</div>' : ''}
+    ${groups.reverse().map(g => `<div class="ngrp">merged ${day(g.date)} · ${ext(g.url, esc(g.title))}${g.date === latestMerge ? '<span class="new">NEW</span>' : ''}</div>
+      ${g.items.map(a => `<div class="nadd${a.date === latestMerge ? ' is-new' : ''}">${esc(a.claim)}${ext(a.link, esc(a.at), 't')}</div>`).join('')}`).join('')}
+  </div>`;
+}
+
+// Tonight: the talks marked in the morning, with the moments worth jumping to.
+function tonight() {
+  const list = R.watch.map(id => talk.get(id)).filter(Boolean);
+  return `<div class="doc"><div class="eyebrow">Tonight</div><h1>${plural(list.length, 'talk')} to watch</h1>
+    <p class="def">Marked in the morning. Each moment opens the video at the second it was said.</p>
+    ${list.map(talkCard).join('') || '<p class="quiet" style="margin-top:18px">Nothing marked yet. Use “+ Watch tonight” on Today.</p>'}</div>`;
+}
+
+// A category report: what changed, then every concept with what each talk added; new parts are yellow.
+function report(cat) {
+  const c = N.categories.find(x => x.name === cat), s = catState(cat);
+  const list = [...(conceptsOf.get(cat) ?? new Map()).entries()].sort(([ak, a], [bk, b]) =>
+    (b.some(m => m.t.isNew) - a.some(m => m.t.isNew)) || (new Set(b.map(m => m.videoId)).size - new Set(a.map(m => m.videoId)).size) || ak.localeCompare(bk));
+  const section = ([k, ms]) => {
+    const fresh = ms.some(m => m.t.isNew), all = ms.every(m => m.t.isNew), n = new Set(ms.map(m => m.videoId)).size;
+    const note = noteOf.get(k.toLowerCase());
+    const adds = note ? note.adds.filter(a => talk.get(a.vid)?.category === cat) : [];
+    return `<details class="concept" id="c-${esc(k)}"${fresh ? ' open' : ''}><summary><h3>${esc(k)}</h3>${all ? '<span class="new">NEW</span>' : fresh ? '<span class="upd">UPDATED</span>' : ''}${note ? '<span class="notetag">your note</span>' : ''}<span class="meta2">${plural(n, 'talk')}</span></summary>
+      ${ms.map(m => `<div class="entry${m.t.isNew ? ' is-new' : ''}">
+        <div class="src-line">${YT}<span>${ext(m.t.url, esc(m.t.title))}${m.name !== k ? ` · called “${esc(m.name)}”` : ''}</span><span class="when">${m.t.isNew ? '<span class="new">NEW</span>' : ''}${m.t.approx ? '~' : ''}${day(m.t.date)}</span></div>
+        <div class="what">${esc(m.what)}</div>
+        ${m.claims.length ? `<ul>${m.claims.map(cl => `<li>${esc(cl.claim)}${ext(cl.link, esc(cl.at), 't')}${cl.quote ? `<q>${esc(cl.quote)}</q>` : ''}</li>`).join('')}</ul>` : ''}
+      </div>`).join('')}
+      ${note ? `<div class="mynote"><h5>In your note “${esc(note.name)}”</h5><div class="mine">${note.own.map(esc).join(' ')}</div>
+        ${adds.map(a => `<div class="add${a.date === latestMerge ? ' is-new' : ''}">${a.date === latestMerge ? '<span class="new">NEW</span> ' : ''}${esc(a.claim)}${ext(a.link, esc(a.at), 't')}</div>`).join('') || '<div class="quiet" style="margin-top:4px">No line from this category\'s talks yet.</div>'}</div>` : ''}
+    </details>`;
+  };
+  return `<div class="doc"><div class="eyebrow">Section</div>
+    <h1>${esc(cat)}${s.newTalks.length ? ` <span class="new">NEW ${s.newTalks.length}</span>` : ''}</h1>
+    <p class="def">${esc(c?.definition)}</p>
+    <p class="stats">${plural(c?.size ?? 0, 'talk')} · ${plural(s.concepts, 'concept')}${R.latest ? ` · last upload ${day(R.latest)}` : ''}</p>
+    ${s.newTalks.length ? `<div class="brief"><div class="brief-h"><span class="new">NEW</span><b>What changed ${R.latest === N.today ? 'this morning' : `on ${day(R.latest)}`}</b></div>
+      <div class="brief-b"><ul>${s.newTalks.map(talkLine).join('')}</ul>
+      <div class="chg">${s.updated.length ? `<b>Updated:</b> ${tags(cat, s.updated)}<br>` : ''}${s.added.length ? `<b>New:</b> ${tags(cat, s.added)}` : ''}</div></div></div>`
+      : '<p class="quiet" style="margin:18px 0">No new talk in this section in the latest upload.</p>'}
+    <div class="section-h">Concepts · new and updated first</div>
+    ${list.map(section).join('')}</div>`;
+}
+
+$('#report').addEventListener('click', async e => {
+  const w = e.target.closest('[data-watch]');
+  if (w) {
+    const r = await fetch('/api/watch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ videoId: w.dataset.watch, on: !watching(w.dataset.watch) }) }).then(r => r.json());
+    R.watch = r.watch; const top = $('#report').scrollTop; go(view); $('#report').scrollTop = top; return;
+  }
+  const p = e.target.closest('[data-prop]');
+  if (p) {
+    const r = await fetch('/api/proposal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: p.dataset.prop, action: p.dataset.act }) });
+    if (!r.ok) { alert((await r.json()).error); return; }
+    [N, R] = await Promise.all([fetch('/api/notes').then(r => r.json()), fetch('/api/report').then(r => r.json())]);
+    index(); const top = $('#report').scrollTop; go(view); $('#report').scrollTop = top; return;
+  }
+  const t = e.target.closest('.tag[data-k]'); if (t) { e.preventDefault(); go(t.dataset.cat, t.dataset.k); return; }
+  const g = e.target.closest('[data-go]'); if (g) go(g.dataset.go);
+});
+
+
+async function load() {
+  [N, R] = await Promise.all([fetch('/api/notes').then(r => r.json()), fetch('/api/report').then(r => r.json())]);
+  index(); pills(); go('brief');
+  const labels = { 'ollama/gemma4:12b': 'Gemma 4 12B · careful', 'ollama/gemma4:e4b': 'Gemma 4 E4B · faster' };
+  $('#model').innerHTML = N.models.map(m => `<button type="button" data-m="${m}" class="${m === model ? 'on' : ''}">${labels[m] ?? m}</button>`).join('');
+  $('#chips').innerHTML = [
+    'What do the talks say about Agent Harness, and does it match my Agent Harness note?',
+    'Do any talks disagree with my Hybrid search note?',
+    'What is new for my Code review with agents note?',
+  ].map(q => `<button type="button">${esc(q)}</button>`).join('');
+}
+
+$('#model').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || busy) return;
+  model = b.dataset.m; document.querySelectorAll('#model button').forEach(x => x.classList.toggle('on', x === b));
+});
+$('#chips').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { $('#q').value = b.textContent; submit(); } });
+
+// The answer: plain text with **bold**, bullet lines, and [C1] / [N1, C3] citations turned into chips.
+function renderAnswer(text, n) {
+  const inline = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\[((?:C\d+|N\d+|M)(?:[,\s]+(?:C\d+|N\d+|M))*)\]/g,
+    (_, ids) => ids.split(/[,\s]+/).map(id => `<span class="cite" data-a="${n}" data-id="${id}">${id}</span>`).join(''));
+  let html = '', list = false;
+  for (const raw of text.split('\n')) {
+    const l = raw.trim(), li = l.match(/^(?:[*\-•]|\d+\.)\s+(.*)$/);
+    if (li) { if (!list) { html += '<ul>'; list = true; } html += `<li>${inline(li[1])}</li>`; continue; }
+    if (list) { html += '</ul>'; list = false; }
+    if (l) html += `<p>${inline(l)}</p>`;
+  }
+  return html + (list ? '</ul>' : '');
+}
+function renderSources(a, n) {
+  if (!a.sources.length) return '<div class="warn">The answer cites no source; treat it as unsupported.</div>';
+  return `<div class="sources">${a.sources.map(s => {
+    const chip = `<span class="cite">${s.id}</span>`;
+    if (s.kind === 'morning') return `<div class="src" id="s${n}-M">${chip}<div>Today's morning page</div></div>`;
+    if (s.kind === 'note') return `<div class="src" id="s${n}-${s.id}">${chip}<div><b>${esc(s.name)}</b> · your note (read only)</div></div>`;
+    return `<div class="src" id="s${n}-${s.id}">${chip}<div><b>${esc(s.title)}</b>${ext(s.link, esc(s.at), 't')}<br>${esc(s.claim)}${s.quote ? `<q>${esc(s.quote)}</q>` : ''}</div></div>`;
+  }).join('')}</div>${a.fake.length ? `<div class="warn">Ignored citations that do not exist: ${esc(a.fake.join(', '))}</div>` : ''}`;
+}
+$('#log').addEventListener('click', e => {
+  const c = e.target.closest('.cite[data-id]'); if (!c) return;
+  const src = document.getElementById(`s${c.dataset.a}-${c.dataset.id}`);
+  if (src) { src.classList.add('hl'); src.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); setTimeout(() => src.classList.remove('hl'), 1600); }
+});
+
+let asked = 0;
+async function submit() {
+  const q = $('#q').value.trim(); if (!q || busy) return;
+  busy = true; $('#send').disabled = true; $('#q').value = ''; grow();
+  const n = ++asked, log = $('#log');
+  log.insertAdjacentHTML('beforeend', `<div class="msg me">${esc(q)}</div><div class="msg bot" id="a${n}"><div class="thinking"><span class="dots"><span></span><span></span><span></span></span><span>Thinking on this laptop · <span id="t${n}">0</span> s</span></div></div>`);
+  log.scrollTop = log.scrollHeight;
+  const t0 = Date.now(), tick = setInterval(() => { const t = $(`#t${n}`); if (t) t.textContent = Math.round((Date.now() - t0) / 1000); }, 1000);
+  try {
+    const r = await fetch('/api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: q, model }) });
+    const a = await r.json();
+    if (!r.ok) throw new Error(a.error);
+    $(`#a${n}`).innerHTML = renderAnswer(a.text, n) + renderSources(a, n)
+      + `<div class="meta">${a.claims} lecture claims searched · ${plural(a.notes, 'note')} used · Notes Assistant (${esc(a.model.replace('ollama/', ''))}) in Ollama · ${a.seconds} s</div>`;
+  } catch (err) {
+    $(`#a${n}`).innerHTML = `<div class="warn">Could not answer: ${esc(err.message)}</div>`;
+  }
+  clearInterval(tick); busy = false; $('#send').disabled = false;
+  $(`#a${n}`).scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+$('#f').addEventListener('submit', e => { e.preventDefault(); submit(); });
+$('#q').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } });
+const grow = () => { const t = $('#q'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 150) + 'px'; };
+$('#q').addEventListener('input', grow);
+
+load(); ollama(); setInterval(ollama, 15000);
+</script>
+</body>
+</html>

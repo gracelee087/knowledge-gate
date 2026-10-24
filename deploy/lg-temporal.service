@@ -1,0 +1,12 @@
+[Unit]
+Description=lecture-gate Temporal dev server (localhost only)
+After=network-online.target
+
+[Service]
+User=lecturegate
+WorkingDirectory=/opt/lecture-gate
+ExecStart=/usr/local/bin/temporal server start-dev --ip 127.0.0.1 --db-filename /opt/lecture-gate/data/temporal.db --log-level warn
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

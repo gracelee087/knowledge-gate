@@ -1,0 +1,11 @@
+[Unit]
+Description=lecture-gate lesson verifier (new lessons -> tested rules in Backboard)
+
+[Service]
+Type=oneshot
+User=lecturegate
+WorkingDirectory=/opt/lecture-gate
+# Each run stops early when there are no new lessons for that agent.
+ExecStart=/usr/bin/npx tsx src/agent/verify.ts cards
+ExecStart=/usr/bin/npx tsx src/agent/verify.ts categories
+ExecStart=/usr/bin/npx tsx src/agent/verify.ts concepts

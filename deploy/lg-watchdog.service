@@ -1,0 +1,9 @@
+[Unit]
+Description=lecture-gate watchdog (renew subscription, catch missed uploads)
+
+[Service]
+Type=oneshot
+User=lecturegate
+WorkingDirectory=/opt/lecture-gate
+Environment=PORT=8080
+ExecStart=/usr/bin/npx tsx src/cli/watchdog.ts

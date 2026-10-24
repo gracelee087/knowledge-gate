@@ -1,0 +1,14 @@
+[Unit]
+Description=lecture-gate YouTube webhook
+After=lg-worker.service
+
+[Service]
+User=lecturegate
+WorkingDirectory=/opt/lecture-gate
+Environment=PORT=8080
+ExecStart=/usr/bin/npx tsx src/server/webhook.ts
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

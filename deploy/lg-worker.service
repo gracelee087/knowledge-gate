@@ -1,0 +1,15 @@
+[Unit]
+Description=lecture-gate Temporal worker (Mastra workflows)
+After=lg-temporal.service
+Requires=lg-temporal.service
+
+[Service]
+User=lecturegate
+WorkingDirectory=/opt/lecture-gate
+ExecStartPre=/bin/sleep 5
+ExecStart=/usr/bin/npx tsx src/mastra/worker.ts
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

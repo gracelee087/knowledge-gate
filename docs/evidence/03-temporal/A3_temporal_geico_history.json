@@ -1,0 +1,474 @@
+{
+  "history": {
+    "events": [
+      {
+        "eventId": "1",
+        "eventTime": "2026-10-21T09:01:29.878212974Z",
+        "eventType": "EVENT_TYPE_WORKFLOW_EXECUTION_STARTED",
+        "taskId": "1048828",
+        "workflowExecutionStartedEventAttributes": {
+          "workflowType": {
+            "name": "processLectureWorkflow"
+          },
+          "taskQueue": {
+            "name": "lecture-gate",
+            "kind": "TASK_QUEUE_KIND_NORMAL"
+          },
+          "input": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg=="
+                },
+                "data": "eyJpbnB1dERhdGEiOnsidmlkZW9JZCI6IkRvdUs4MU84UjNvIiwidGVzdCI6ZmFsc2V9LCJyZXF1ZXN0Q29udGV4dCI6e30sInJ1bklkIjoibGVjdHVyZS1Eb3VLODFPOFIzbyJ9"
+              }
+            ]
+          },
+          "workflowTaskTimeout": "10s",
+          "originalExecutionRunId": "01a15db1-b596-7335-a136-fe5fbb7a5b95",
+          "identity": "10348@lecture-gate",
+          "firstExecutionRunId": "01a15db1-b596-7335-a136-fe5fbb7a5b95",
+          "attempt": 1,
+          "firstWorkflowTaskBackoff": "0s",
+          "header": {},
+          "workflowId": "lecture-DouK81O8R3o"
+        }
+      },
+      {
+        "eventId": "2",
+        "eventTime": "2026-10-21T09:01:29.879849585Z",
+        "eventType": "EVENT_TYPE_WORKFLOW_TASK_SCHEDULED",
+        "taskId": "1048829",
+        "workflowTaskScheduledEventAttributes": {
+          "taskQueue": {
+            "name": "lecture-gate",
+            "kind": "TASK_QUEUE_KIND_NORMAL"
+          },
+          "startToCloseTimeout": "10s",
+          "attempt": 1
+        }
+      },
+      {
+        "eventId": "3",
+        "eventTime": "2026-10-21T09:01:29.935530167Z",
+        "eventType": "EVENT_TYPE_WORKFLOW_TASK_STARTED",
+        "taskId": "1048834",
+        "workflowTaskStartedEventAttributes": {
+          "scheduledEventId": "2",
+          "identity": "10347@lecture-gate",
+          "requestId": "d65fe672-3a51-4b84-aabd-c6045b81b3d7",
+          "historySizeBytes": "388",
+          "workerVersion": {
+            "buildId": "@temporalio/worker@1.24.0+97e5da632e93ab6d6b2af5d318c3e81557e5fdfdf17ba3a9434d3e6435174e16"
+          }
+        }
+      },
+      {
+        "eventId": "4",
+        "eventTime": "2026-10-21T09:01:33.692517743Z",
+        "eventType": "EVENT_TYPE_WORKFLOW_TASK_COMPLETED",
+        "taskId": "1048844",
+        "workflowTaskCompletedEventAttributes": {
+          "scheduledEventId": "2",
+          "startedEventId": "3",
+          "identity": "10347@lecture-gate",
+          "workerVersion": {
+            "buildId": "@temporalio/worker@1.24.0+97e5da632e93ab6d6b2af5d318c3e81557e5fdfdf17ba3a9434d3e6435174e16"
+          },
+          "sdkMetadata": {
+            "coreUsedFlags": [
+              3,
+              2,
+              1
+            ],
+            "sdkName": "temporal-typescript",
+            "sdkVersion": "1.24.0"
+          },
+          "meteringMetadata": {}
+        }
+      },
+      {
+        "eventId": "5",
+        "eventTime": "2026-10-21T09:01:33.692667193Z",
+        "eventType": "EVENT_TYPE_ACTIVITY_TASK_SCHEDULED",
+        "taskId": "1048845",
+        "activityTaskScheduledEventAttributes": {
+          "activityId": "1",
+          "activityType": {
+            "name": "transcript"
+          },
+          "taskQueue": {
+            "name": "lecture-gate",
+            "kind": "TASK_QUEUE_KIND_NORMAL"
+          },
+          "header": {},
+          "input": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg=="
+                },
+                "data": "eyJpbnB1dERhdGEiOnsidmlkZW9JZCI6IkRvdUs4MU84UjNvIiwidGVzdCI6ZmFsc2V9LCJpbml0RGF0YSI6eyJ2aWRlb0lkIjoiRG91SzgxTzhSM28iLCJ0ZXN0IjpmYWxzZX0sInJlcXVlc3RDb250ZXh0Ijp7fSwicnVuSWQiOiJsZWN0dXJlLURvdUs4MU84UjNvIiwid29ya2Zsb3dJZCI6InByb2Nlc3MtbGVjdHVyZSJ9"
+              }
+            ]
+          },
+          "scheduleToCloseTimeout": "0s",
+          "scheduleToStartTimeout": "0s",
+          "startToCloseTimeout": "300s",
+          "heartbeatTimeout": "0s",
+          "workflowTaskCompletedEventId": "4",
+          "retryPolicy": {
+            "initialInterval": "1s",
+            "backoffCoefficient": 2,
+            "maximumInterval": "100s",
+            "maximumAttempts": 3
+          },
+          "useWorkflowBuildId": true
+        }
+      },
+      {
+        "eventId": "6",
+        "eventTime": "2026-10-21T09:01:33.737633034Z",
+        "eventType": "EVENT_TYPE_ACTIVITY_TASK_STARTED",
+        "taskId": "1048870",
+        "activityTaskStartedEventAttributes": {
+          "scheduledEventId": "5",
+          "identity": "10347@lecture-gate",
+          "requestId": "f52b0b2b-25fd-459c-94c7-abb578df4ef9",
+          "attempt": 1,
+          "workerVersion": {
+            "buildId": "@temporalio/worker@1.24.0+97e5da632e93ab6d6b2af5d318c3e81557e5fdfdf17ba3a9434d3e6435174e16"
+          }
+        }
+      },
+      {
+        "eventId": "7",
+        "eventTime": "2026-10-21T09:01:54.973223892Z",
+        "eventType": "EVENT_TYPE_ACTIVITY_TASK_COMPLETED",
+        "taskId": "1048871",
+        "activityTaskCompletedEventAttributes": {
+          "result": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg=="
+                },
+                "data": "eyJ2aWRlb0lkIjoiRG91SzgxTzhSM28iLCJ0ZXN0IjpmYWxzZSwibG9nIjoiRG91SzgxTzhSM286IDE0NSB0cmFuc2NyaXB0IGxpbmVzIn0="
+              }
+            ]
+          },
+          "scheduledEventId": "5",
+          "startedEventId": "6",
+          "identity": "10347@lecture-gate"
+        }
+      },
+      {
+        "eventId": "8",
+        "eventTime": "2026-10-21T09:01:54.973261667Z",
+        "eventType": "EVENT_TYPE_WORKFLOW_TASK_SCHEDULED",
+        "taskId": "1048872",
+        "workflowTaskScheduledEventAttributes": {
+          "taskQueue": {
+            "name": "10347@lecture-gate-04c6f9f66eb44040a9a6c82be353a53f",
+            "kind": "TASK_QUEUE_KIND_STICKY",
+            "normalName": "lecture-gate"
+          },
+          "startToCloseTimeout": "10s",
+          "attempt": 1
+        }
+      },
+      {
+        "eventId": "9",
+        "eventTime": "2026-10-21T09:01:55.000888187Z",
+        "eventType": "EVENT_TYPE_WORKFLOW_TASK_STARTED",
+        "taskId": "1048876",
+        "workflowTaskStartedEventAttributes": {
+          "scheduledEventId": "8",
+          "identity": "10347@lecture-gate",
+          "requestId": "7555b634-2720-4c89-a33a-3b57c6fc8eed",
+          "historySizeBytes": "1525",
+          "workerVersion": {
+            "buildId": "@temporalio/worker@1.24.0+97e5da632e93ab6d6b2af5d318c3e81557e5fdfdf17ba3a9434d3e6435174e16"
+          }
+        }
+      },
+      {
+        "eventId": "10",
+        "eventTime": "2026-10-21T09:01:55.047389367Z",
+        "eventType": "EVENT_TYPE_WORKFLOW_TASK_COMPLETED",
+        "taskId": "1048880",
+        "workflowTaskCompletedEventAttributes": {
+          "scheduledEventId": "8",
+          "startedEventId": "9",
+          "identity": "10347@lecture-gate",
+          "workerVersion": {
+            "buildId": "@temporalio/worker@1.24.0+97e5da632e93ab6d6b2af5d318c3e81557e5fdfdf17ba3a9434d3e6435174e16"
+          },
+          "sdkMetadata": {},
+          "meteringMetadata": {}
+        }
+      },
+      {
+        "eventId": "11",
+        "eventTime": "2026-10-21T09:01:55.047496638Z",
+        "eventType": "EVENT_TYPE_ACTIVITY_TASK_SCHEDULED",
+        "taskId": "1048881",
+        "activityTaskScheduledEventAttributes": {
+          "activityId": "2",
+          "activityType": {
+            "name": "card"
+          },
+          "taskQueue": {
+            "name": "lecture-gate",
+            "kind": "TASK_QUEUE_KIND_NORMAL"
+          },
+          "header": {},
+          "input": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg=="
+                },
+                "data": "eyJpbnB1dERhdGEiOnsidmlkZW9JZCI6IkRvdUs4MU84UjNvIiwidGVzdCI6ZmFsc2UsImxvZyI6IkRvdUs4MU84UjNvOiAxNDUgdHJhbnNjcmlwdCBsaW5lcyJ9LCJpbml0RGF0YSI6eyJ2aWRlb0lkIjoiRG91SzgxTzhSM28iLCJ0ZXN0IjpmYWxzZX0sInJlcXVlc3RDb250ZXh0Ijp7fSwicnVuSWQiOiJsZWN0dXJlLURvdUs4MU84UjNvIiwid29ya2Zsb3dJZCI6InByb2Nlc3MtbGVjdHVyZSJ9"
+              }
+            ]
+          },
+          "scheduleToCloseTimeout": "0s",
+          "scheduleToStartTimeout": "0s",
+          "startToCloseTimeout": "300s",
+          "heartbeatTimeout": "0s",
+          "workflowTaskCompletedEventId": "10",
+          "retryPolicy": {
+            "initialInterval": "1s",
+            "backoffCoefficient": 2,
+            "maximumInterval": "100s",
+            "maximumAttempts": 3
+          },
+          "useWorkflowBuildId": true
+        }
+      },
+      {
+        "eventId": "12",
+        "eventTime": "2026-10-21T09:01:55.081555405Z",
+        "eventType": "EVENT_TYPE_ACTIVITY_TASK_STARTED",
+        "taskId": "1048894",
+        "activityTaskStartedEventAttributes": {
+          "scheduledEventId": "11",
+          "identity": "10347@lecture-gate",
+          "requestId": "b78922f0-240a-407d-814a-f2ec1dc55733",
+          "attempt": 1,
+          "workerVersion": {
+            "buildId": "@temporalio/worker@1.24.0+97e5da632e93ab6d6b2af5d318c3e81557e5fdfdf17ba3a9434d3e6435174e16"
+          }
+        }
+      },
+      {
+        "eventId": "13",
+        "eventTime": "2026-10-21T09:02:21.971993330Z",
+        "eventType": "EVENT_TYPE_ACTIVITY_TASK_COMPLETED",
+        "taskId": "1048895",
+        "activityTaskCompletedEventAttributes": {
+          "result": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg=="
+                },
+                "data": "eyJ2aWRlb0lkIjoiRG91SzgxTzhSM28iLCJ0ZXN0IjpmYWxzZSwibG9nIjoiMSB2aWRlb3M6IDEgY2FyZHMgbWFkZSwgMCBza2lwcGVkLCAwIGZhaWxlZDsgdG9rZW5zIGluL291dCA2Mzk1Lzk4MiJ9"
+              }
+            ]
+          },
+          "scheduledEventId": "11",
+          "startedEventId": "12",
+          "identity": "10347@lecture-gate"
+        }
+      },
+      {
+        "eventId": "14",
+        "eventTime": "2026-10-21T09:02:21.972035125Z",
+        "eventType": "EVENT_TYPE_WORKFLOW_TASK_SCHEDULED",
+        "taskId": "1048896",
+        "workflowTaskScheduledEventAttributes": {
+          "taskQueue": {
+            "name": "10347@lecture-gate-04c6f9f66eb44040a9a6c82be353a53f",
+            "kind": "TASK_QUEUE_KIND_STICKY",
+            "normalName": "lecture-gate"
+          },
+          "startToCloseTimeout": "10s",
+          "attempt": 1
+        }
+      },
+      {
+        "eventId": "15",
+        "eventTime": "2026-10-21T09:02:21.988858878Z",
+        "eventType": "EVENT_TYPE_WORKFLOW_TASK_STARTED",
+        "taskId": "1048900",
+        "workflowTaskStartedEventAttributes": {
+          "scheduledEventId": "14",
+          "identity": "10347@lecture-gate",
+          "requestId": "18a4a6ff-81bc-4a9c-82c0-969376d9a748",
+          "historySizeBytes": "2694",
+          "workerVersion": {
+            "buildId": "@temporalio/worker@1.24.0+97e5da632e93ab6d6b2af5d318c3e81557e5fdfdf17ba3a9434d3e6435174e16"
+          }
+        }
+      },
+      {
+        "eventId": "16",
+        "eventTime": "2026-10-21T09:02:22.042425548Z",
+        "eventType": "EVENT_TYPE_WORKFLOW_TASK_COMPLETED",
+        "taskId": "1048913",
+        "workflowTaskCompletedEventAttributes": {
+          "scheduledEventId": "14",
+          "startedEventId": "15",
+          "identity": "10347@lecture-gate",
+          "workerVersion": {
+            "buildId": "@temporalio/worker@1.24.0+97e5da632e93ab6d6b2af5d318c3e81557e5fdfdf17ba3a9434d3e6435174e16"
+          },
+          "sdkMetadata": {},
+          "meteringMetadata": {}
+        }
+      },
+      {
+        "eventId": "17",
+        "eventTime": "2026-10-21T09:02:22.042534987Z",
+        "eventType": "EVENT_TYPE_ACTIVITY_TASK_SCHEDULED",
+        "taskId": "1048914",
+        "activityTaskScheduledEventAttributes": {
+          "activityId": "3",
+          "activityType": {
+            "name": "addToMap"
+          },
+          "taskQueue": {
+            "name": "lecture-gate",
+            "kind": "TASK_QUEUE_KIND_NORMAL"
+          },
+          "header": {},
+          "input": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg=="
+                },
+                "data": "eyJpbnB1dERhdGEiOnsidmlkZW9JZCI6IkRvdUs4MU84UjNvIiwidGVzdCI6ZmFsc2UsImxvZyI6IjEgdmlkZW9zOiAxIGNhcmRzIG1hZGUsIDAgc2tpcHBlZCwgMCBmYWlsZWQ7IHRva2VucyBpbi9vdXQgNjM5NS85ODIifSwiaW5pdERhdGEiOnsidmlkZW9JZCI6IkRvdUs4MU84UjNvIiwidGVzdCI6ZmFsc2V9LCJyZXF1ZXN0Q29udGV4dCI6e30sInJ1bklkIjoibGVjdHVyZS1Eb3VLODFPOFIzbyIsIndvcmtmbG93SWQiOiJwcm9jZXNzLWxlY3R1cmUifQ=="
+              }
+            ]
+          },
+          "scheduleToCloseTimeout": "0s",
+          "scheduleToStartTimeout": "0s",
+          "startToCloseTimeout": "300s",
+          "heartbeatTimeout": "0s",
+          "workflowTaskCompletedEventId": "16",
+          "retryPolicy": {
+            "initialInterval": "1s",
+            "backoffCoefficient": 2,
+            "maximumInterval": "100s",
+            "maximumAttempts": 3
+          },
+          "useWorkflowBuildId": true
+        }
+      },
+      {
+        "eventId": "18",
+        "eventTime": "2026-10-21T09:02:22.075109385Z",
+        "eventType": "EVENT_TYPE_ACTIVITY_TASK_STARTED",
+        "taskId": "1048930",
+        "activityTaskStartedEventAttributes": {
+          "scheduledEventId": "17",
+          "identity": "10347@lecture-gate",
+          "requestId": "840b7f4c-9fd3-416a-a75a-1fe07b89752e",
+          "attempt": 1,
+          "workerVersion": {
+            "buildId": "@temporalio/worker@1.24.0+97e5da632e93ab6d6b2af5d318c3e81557e5fdfdf17ba3a9434d3e6435174e16"
+          }
+        }
+      },
+      {
+        "eventId": "19",
+        "eventTime": "2026-10-21T09:02:42.520006899Z",
+        "eventType": "EVENT_TYPE_ACTIVITY_TASK_COMPLETED",
+        "taskId": "1048931",
+        "activityTaskCompletedEventAttributes": {
+          "result": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg=="
+                },
+                "data": "eyJ2aWRlb0lkIjoiRG91SzgxTzhSM28iLCJyZXN1bHQiOiJEb3VLODFPOFIzbzogMS81IG1lbnRpb25zIGpvaW5lZCBleGlzdGluZyBjb25jZXB0czsgY2F0ZWdvcnkgQUkgU29mdHdhcmUgRmFjdG9yaWVzIHwgY2hlY2tzIHBhc3NlZDogZWFjaCBsZWN0dXJlIG9uY2UsIG9ubHkgdmVyaWZpZWQgcXVvdGVzLCBubyBkYW5nbGluZyBsaW5rcyJ9"
+              }
+            ]
+          },
+          "scheduledEventId": "17",
+          "startedEventId": "18",
+          "identity": "10347@lecture-gate"
+        }
+      },
+      {
+        "eventId": "20",
+        "eventTime": "2026-10-21T09:02:42.520175979Z",
+        "eventType": "EVENT_TYPE_WORKFLOW_TASK_SCHEDULED",
+        "taskId": "1048932",
+        "workflowTaskScheduledEventAttributes": {
+          "taskQueue": {
+            "name": "10347@lecture-gate-04c6f9f66eb44040a9a6c82be353a53f",
+            "kind": "TASK_QUEUE_KIND_STICKY",
+            "normalName": "lecture-gate"
+          },
+          "startToCloseTimeout": "10s",
+          "attempt": 1
+        }
+      },
+      {
+        "eventId": "21",
+        "eventTime": "2026-10-21T09:02:42.537896193Z",
+        "eventType": "EVENT_TYPE_WORKFLOW_TASK_STARTED",
+        "taskId": "1048936",
+        "workflowTaskStartedEventAttributes": {
+          "scheduledEventId": "20",
+          "identity": "10347@lecture-gate",
+          "requestId": "0f6f142e-0052-4576-95b8-211b35aabdcf",
+          "historySizeBytes": "3985",
+          "workerVersion": {
+            "buildId": "@temporalio/worker@1.24.0+97e5da632e93ab6d6b2af5d318c3e81557e5fdfdf17ba3a9434d3e6435174e16"
+          }
+        }
+      },
+      {
+        "eventId": "22",
+        "eventTime": "2026-10-21T09:02:42.571400627Z",
+        "eventType": "EVENT_TYPE_WORKFLOW_TASK_COMPLETED",
+        "taskId": "1048940",
+        "workflowTaskCompletedEventAttributes": {
+          "scheduledEventId": "20",
+          "startedEventId": "21",
+          "identity": "10347@lecture-gate",
+          "workerVersion": {
+            "buildId": "@temporalio/worker@1.24.0+97e5da632e93ab6d6b2af5d318c3e81557e5fdfdf17ba3a9434d3e6435174e16"
+          },
+          "sdkMetadata": {},
+          "meteringMetadata": {}
+        }
+      },
+      {
+        "eventId": "23",
+        "eventTime": "2026-10-21T09:02:42.571507406Z",
+        "eventType": "EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED",
+        "taskId": "1048941",
+        "workflowExecutionCompletedEventAttributes": {
+          "result": {
+            "payloads": [
+              {
+                "metadata": {
+                  "encoding": "anNvbi9wbGFpbg=="
+                },
+                "data": "eyJzdGF0dXMiOiJzdWNjZXNzIiwiaW5wdXQiOnsidmlkZW9JZCI6IkRvdUs4MU84UjNvIiwidGVzdCI6ZmFsc2V9LCJyZXN1bHQiOnsidmlkZW9JZCI6IkRvdUs4MU84UjNvIiwicmVzdWx0IjoiRG91SzgxTzhSM286IDEvNSBtZW50aW9ucyBqb2luZWQgZXhpc3RpbmcgY29uY2VwdHM7IGNhdGVnb3J5IEFJIFNvZnR3YXJlIEZhY3RvcmllcyB8IGNoZWNrcyBwYXNzZWQ6IGVhY2ggbGVjdHVyZSBvbmNlLCBvbmx5IHZlcmlmaWVkIHF1b3Rlcywgbm8gZGFuZ2xpbmcgbGlua3MifSwic3RlcHMiOnsidHJhbnNjcmlwdCI6eyJ2aWRlb0lkIjoiRG91SzgxTzhSM28iLCJ0ZXN0IjpmYWxzZSwibG9nIjoiRG91SzgxTzhSM286IDE0NSB0cmFuc2NyaXB0IGxpbmVzIn0sImNhcmQiOnsidmlkZW9JZCI6IkRvdUs4MU84UjNvIiwidGVzdCI6ZmFsc2UsImxvZyI6IjEgdmlkZW9zOiAxIGNhcmRzIG1hZGUsIDAgc2tpcHBlZCwgMCBmYWlsZWQ7IHRva2VucyBpbi9vdXQgNjM5NS85ODIifSwiYWRkVG9NYXAiOnsidmlkZW9JZCI6IkRvdUs4MU84UjNvIiwicmVzdWx0IjoiRG91SzgxTzhSM286IDEvNSBtZW50aW9ucyBqb2luZWQgZXhpc3RpbmcgY29uY2VwdHM7IGNhdGVnb3J5IEFJIFNvZnR3YXJlIEZhY3RvcmllcyB8IGNoZWNrcyBwYXNzZWQ6IGVhY2ggbGVjdHVyZSBvbmNlLCBvbmx5IHZlcmlmaWVkIHF1b3Rlcywgbm8gZGFuZ2xpbmcgbGlua3MifX19"
+              }
+            ]
+          },
+          "workflowTaskCompletedEventId": "22"
+        }
+      }
+    ]
+  }
+}
