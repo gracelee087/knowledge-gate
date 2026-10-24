@@ -7,6 +7,49 @@ what is new to my own notes, and my notes never leave my laptop.**
 
 *The morning page at `http://127.0.0.1:4321` (Oct 22). Speaker names are blurred in this screenshot.*
 
+## At a glance
+
+| | |
+|---|---|
+| **What it does** | A new AI talk is uploaded → the server turns it into a checked card → every morning my laptop adds only what is new to my own notes → I can ask, by typing or by voice. |
+| **Gemma 4** | Gemma 4 31B writes the cards and joins concepts on the server; Gemma 4 12B and EmbeddingGemma in Ollama merge my notes and answer on the laptop. [The AI agents](#the-ai-agents-one-job-each) |
+| **Never pretends** | Every quote is checked word for word by code; a failed check loops back, becomes a lesson, and a tested rule. If something is not in my notes, it says so. [What happens when a check fails](#what-happens-when-a-check-fails) |
+| **Private** | My notes never leave the laptop; only public talk data goes through MongoDB Atlas. [Privacy](#privacy) |
+| **Voice** | Whisper runs on the laptop; spoken answers come from my notes and the talks. With `--voices elevenlabs`, ElevenLabs voices the answers and the morning briefing, and plays calm music when I say I'm tired. [Ask by voice](#ask-by-typing-or-by-voice) |
+| **Real tools, real runs** | Mastra on Temporal, MongoDB Atlas Vector Search, Sentry, SerpApi, Backboard, DigitalOcean. [Screenshots](#the-tools-in-real-use) |
+| **Open source** | MIT. [Run it](#run-it) |
+
+## The tools in real use
+
+Screenshots from my own accounts, taken while the system ran on real talks (Oct 21–22). More in [`docs/evidence/`](docs/evidence/).
+
+<table>
+<tr>
+<td width="50%"><img src="docs/evidence/03-temporal/P_mastra_dev.png" alt="The Mastra workflow definition in src/mastra/index.ts: Temporal task queue lecture-gate, 5 minute timeout, 3 attempts, steps transcript, card, map in a fixed order"></td>
+<td width="50%"><img src="docs/evidence/05-sentry/S_sentry_llm_calls_dev.png" alt="Sentry span samples: 977 gen_ai model calls, model gemma-4-31B-it, under $0.01 each, output messages empty"></td>
+</tr>
+<tr>
+<td><em><b>Mastra + Temporal</b>: the workflow in <code>src/mastra/index.ts</code>, 5 minute timeout, 3 attempts, three steps in a fixed order.</em></td>
+<td><em><b>Sentry</b>: 977 model calls traced as <code>gen_ai</code> spans, each Gemma 4 31B card call under $0.01. The output column is empty because prompts and outputs are never sent.</em></td>
+</tr>
+<tr>
+<td><img src="docs/evidence/05-sentry/S_sentry_issue_dev.png" alt="Sentry issue LECTURE-GATE-4: Command failed: npx tsx src/cli/map.ts, 9 events on Oct 22"></td>
+<td><img src="docs/evidence/09-serpapi/S_serpapi_searches_dev.png" alt="SerpApi search log: one youtube_video_transcript search per talk, 105 of 250 searches used"></td>
+</tr>
+<tr>
+<td><em><b>Sentry</b>: a real incident, LECTURE-GATE-4. The map step failed because I had regenerated the map files as root; a <code>chown</code> fixed it.</em></td>
+<td><em><b>SerpApi</b>: one <code>youtube_video_transcript</code> search per talk, cached on disk; 105 of the month's 250 free searches used.</em></td>
+</tr>
+<tr>
+<td><img src="docs/evidence/07-cost-digitalocean/DO_cost_compact.png" alt="DigitalOcean bill for October 1 to 21, 2026: GenAI Serverless Inference $0.83, Droplets $0.02, Apps $1.48, all paid by credits, total $0.00"></td>
+<td></td>
+</tr>
+<tr>
+<td><em><b>DigitalOcean</b>, Oct 1–21: lecture-gate is GenAI Serverless Inference $0.83 + Droplets $0.02 ("Apps $1.48" is another project). Credits paid it all: total $0.00.</em></td>
+<td></td>
+</tr>
+</table>
+
 ## The problem
 
 A few YouTube channels I follow (AI Engineer conference talks and two others, see `src/lib/channel.ts`) upload
@@ -225,37 +268,6 @@ That mode is for the demo only.
   mode, the spoken answer text; and while a slow spoken answer is loading, the page server fetches the weather from
   Open-Meteo (only the city name is sent) for the host's waiting lines, and also requests the Hacker News top
   stories (see the last limit below).
-
-## The tools in real use
-
-Screenshots from the running system (Oct 21–22).
-
-<table>
-<tr>
-<td width="50%"><img src="docs/evidence/03-temporal/P_mastra_dev.png" alt="The Mastra workflow definition in src/mastra/index.ts: Temporal task queue lecture-gate, 5 minute timeout, 3 attempts, steps transcript, card, map in a fixed order"></td>
-<td width="50%"><img src="docs/evidence/05-sentry/S_sentry_llm_calls_dev.png" alt="Sentry span samples: 977 gen_ai model calls, model gemma-4-31B-it, under $0.01 each, output messages empty"></td>
-</tr>
-<tr>
-<td><em><b>Mastra + Temporal</b>: the workflow in <code>src/mastra/index.ts</code>, 5 minute timeout, 3 attempts, three steps in a fixed order.</em></td>
-<td><em><b>Sentry</b>: 977 model calls traced as <code>gen_ai</code> spans, each Gemma 4 31B card call under $0.01. The output column is empty because prompts and outputs are never sent.</em></td>
-</tr>
-<tr>
-<td><img src="docs/evidence/05-sentry/S_sentry_issue_dev.png" alt="Sentry issue LECTURE-GATE-4: Command failed: npx tsx src/cli/map.ts, 9 events on Oct 22"></td>
-<td><img src="docs/evidence/09-serpapi/S_serpapi_searches_dev.png" alt="SerpApi search log: one youtube_video_transcript search per talk, 105 of 250 searches used"></td>
-</tr>
-<tr>
-<td><em><b>Sentry</b>: a real incident, LECTURE-GATE-4. The map step failed because I had regenerated the map files as root; a <code>chown</code> fixed it.</em></td>
-<td><em><b>SerpApi</b>: one <code>youtube_video_transcript</code> search per talk, cached on disk; 105 of the month's 250 free searches used.</em></td>
-</tr>
-<tr>
-<td><img src="docs/evidence/07-cost-digitalocean/DO_cost_compact.png" alt="DigitalOcean bill for October 1 to 21, 2026: GenAI Serverless Inference $0.83, Droplets $0.02, Apps $1.48, all paid by credits, total $0.00"></td>
-<td></td>
-</tr>
-<tr>
-<td><em><b>DigitalOcean</b>, Oct 1–21: lecture-gate is GenAI Serverless Inference $0.83 + Droplets $0.02 ("Apps $1.48" is another project). Credits paid it all: total $0.00.</em></td>
-<td></td>
-</tr>
-</table>
 
 ## Stack
 
