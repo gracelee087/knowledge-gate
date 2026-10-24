@@ -1,4 +1,4 @@
-﻿# Run by Windows Task Scheduler at logon (task "lecture-gate morning"): the laptop's morning routine without
+﻿# Run by Windows Task Scheduler at logon (task "knowledge-gate morning"): the laptop's morning routine without
 # anyone at the keyboard. Waits for Ollama (it starts from the Startup folder), then pulls from Atlas and merges.
 # Output goes to data/morning_log.txt.
 $root = Split-Path $PSScriptRoot -Parent
