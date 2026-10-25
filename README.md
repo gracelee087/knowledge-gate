@@ -7,7 +7,7 @@ appends the points my notes don't have yet. The notes themselves stay on the lap
 
 *The morning page in Chrome at `http://127.0.0.1:4321` on my laptop (Oct 24), with the talks that arrived that day.*
 
-**Demo video (1:59):** https://youtu.be/PV8kGpaRnAo
+**Demo video (2:02):** https://youtu.be/3SoKm_N-4lU
 
 ## At a glance
 
