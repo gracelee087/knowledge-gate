@@ -191,7 +191,7 @@ createServer(async (req, res) => {
   }
 }).listen(PORT, '127.0.0.1', async () => {
   console.log(`knowledge-gate on this laptop: http://127.0.0.1:${PORT}`);
-  // Load the embedding model and the note vectors now, so the first spoken question answers in under a second.
+  // Load the embedding model and the note vectors now, before the first question.
   await recall('agent harness').catch(e => console.log(`search not warmed: ${e.message}`));
   if (VOICES !== 'elevenlabs') return;
   // Make the voice for the waiting lines and the usual spoken questions now, so they play at once when asked.
