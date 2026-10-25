@@ -1,7 +1,7 @@
 # knowledge-gate
 
-**AI engineering talks come out faster than I can watch them. Open Gemma models watch them for me and add only
-what is new to my own notes, and my notes never leave my laptop.**
+**Slow and steady: a small server turns every new AI engineering talk into a checked card, and Gemma 4 on my laptop
+appends the points my notes don't have yet. The notes themselves stay on the laptop.**
 
 ![The morning page on my laptop: today's new talks, each with a one-line conclusion, a summary with marked key phrases, and the "Ask your notes" panel](docs/images/morning-page.png)
 
@@ -9,18 +9,15 @@ what is new to my own notes, and my notes never leave my laptop.**
 
 **Demo video (1:59):** https://youtu.be/PV8kGpaRnAo
 
-> The project's working name was lecture-gate. Internal names keep it: the Atlas database `lecture_gate`, the Sentry
-> project, the Temporal task queue, the Backboard assistant and the `lg-*` services. Some screenshots show that name.
-
 ## At a glance
 
 | | |
 |---|---|
 | **What it does** | A new AI talk is uploaded → the server turns it into a checked card → every morning my laptop adds only what is new to my own notes → I can ask, by typing or by voice. |
 | **Gemma 4** | Gemma 4 31B writes the cards and joins concepts on the server; Gemma 4 12B and EmbeddingGemma in Ollama merge my notes and answer on the laptop. [The AI agents](#the-ai-agents-one-job-each) |
-| **Never pretends** | Every quote is checked word for word by code; a failed check loops back, becomes a lesson, and a tested rule. If something is not in my notes, it says so. [What happens when a check fails](#what-happens-when-a-check-fails) |
+| **Checked by code** | A quote is kept only if it is in the transcript word for word. A failed check is retried and saved as a lesson; a rule made from lessons is kept only if test runs with it do as well or better. A question with no match in the talks or my notes gets a fixed "not in your notes" reply. [What happens when a check fails](#what-happens-when-a-check-fails) |
 | **Private** | My notes never leave the laptop; only public talk data goes through MongoDB Atlas. [Privacy](#privacy) |
-| **Voice** | Optional: with `--stt whisper`, Whisper runs on the laptop; spoken answers come from my notes and the talks. With `--voices elevenlabs`, ElevenLabs voices the answers and the morning briefing, and plays calm music when I say I'm tired. [Ask by voice](#ask-by-typing-or-by-voice) |
+| **Voice (off by default)** | `--stt whisper` adds a mic button (Whisper on the laptop). `--voices elevenlabs` reads answers aloud with ElevenLabs; without it the browser's own voices are used. [Ask by voice](#ask-by-typing-or-by-voice) |
 | **Real tools, real runs** | Mastra on Temporal, MongoDB Atlas Vector Search, Sentry, SerpApi, Backboard, DigitalOcean. [Screenshots](#the-tools-in-real-use) |
 | **Open source** | MIT. [Run it](#run-it) |
 
@@ -206,13 +203,13 @@ each check has met the real thing.
 | What if… | What catches it | What happened |
 |---|---|---|
 | a card quotes something the speaker never said? | The Quote Checker keeps a quote only if it is in the transcript word for word. | 397 of 444 quotes found (Oct 24); only those are shown. |
-| the merge changes or deletes my own words? | The merge only appends, and a git check after every merge reports any existing line that was removed or changed. | Oct 21: my Agent Harness note went from 42 to 44 lines, my words untouched. Merging the same 4 talks again: 23 of 23 known, 0 appended. |
+| the merge changes or deletes my own words? | The merge only appends, and a git check after every merge reports any existing line that was removed or changed. | Oct 24: an Arize AI talk took my Agent Harness note from 46 to 48 lines; the git diff of that merge (notes commit `f2e8363`) only adds lines. Merging the same 4 talks again: 23 of 23 known, 0 appended. |
 | the server dies in the middle of a talk? | Temporal: a 5-minute timeout and up to 3 attempts per step. | The kill test above; and on Oct 22, for real, a card step timed out once and attempt 2 finished it. |
 | two different ideas are merged because they share a word? | 6 vector candidates, code accepts only an answer that names one, and a second, strict call checks every join. | "AI Factory" (data centers) was pulled out of "Software Factory". |
 | something fails on the server and nobody notices? | Sentry records each failed step as an issue. | LECTURE-GATE-4: the map step failed with `EACCES`, and the laptop had 77 cards while the server had 80. |
 | the laptop's morning step fails quietly? | Task Scheduler records the exit code, and `data/morning_log.txt` keeps the error. No alarm on the laptop yet. | Oct 24: my end-to-end check, not an alarm, found that the morning task still ran an old copy of the project and failed, and that the morning step stopped at the map on four leftover paper cards. Both fixed; the next run ended with result 0. |
 
-## My note, before and after
+## How a note grows
 
 The Note Merger works on my own Markdown notes. For each new claim it picks at most one note (a note named after
 one of the claim's concepts, else a note whose text names one, else the closest note by EmbeddingGemma similarity).
@@ -225,10 +222,11 @@ video. **Nothing above that heading is changed, and code checks this.** Claims t
 note for the talk's category (`notes/sections/`). If a claim corrects a sentence I wrote, it becomes an edit
 proposal that I can approve on the page; otherwise my sentences are never touched.
 
-![My Agent Harness note before and after one new talk: my own text is unchanged, and the new point is added under "From lectures", marked NEW](docs/images/note-before-after.png)
+![My Agent Harness note on the laptop page: my working definition and open questions at the top, and under "From lectures" the point merged on Oct 24 from an Arize AI talk, marked NEW, with a link to 05:43](docs/evidence/02-my-note-grows/note_oct24_real.png)
 
-*Real screenshots, placed side by side (Oct 20 → Oct 21). "Agent Harness" is one of the sample notes in
-`notes.sample/`.*
+*The laptop page at `127.0.0.1:4321`, captured Oct 25. The Arize AI talk's push notification reached the server at
+19:01 UTC on Oct 24; that evening the merge appended the highlighted point (46 → 48 lines, only lines added).
+"Agent Harness" is one of the sample notes in `notes.sample/`.*
 
 A claim that seems to answer a question I asked earlier and that was not in my notes (see below) is marked 🔔
 "possibly answers your question" in `notes/00 Morning.md`.
@@ -264,8 +262,8 @@ language model, so they come back fast:
 - "Tell me more about … in today's talk" reads out the newest talk's three closest claims with their times and
   verified quotes.
 - Any other question is answered from the search alone: the start of my closest note in my own words, plus up to two
-  close talk claims with their quotes. The page server loads the search model at start so the first spoken
-  question answers in under a second (smoke tests on Oct 24 measured about 0.2 to 0.6 s per answer). Whisper itself
+  close talk claims with their quotes. The page server loads the search model at start, so even the first spoken
+  question is quick: smoke tests on Oct 24 measured about 0.2 to 0.6 s per answer. Whisper itself
   adds about 3 to 5 s on my CPU before that.
 - If nothing in the talks or my notes is close enough, the answer is a fixed "not in your notes" reply, and the
   question is saved to `data/open_questions.json` on the laptop. When a later talk seems to answer it, the morning
